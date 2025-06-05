@@ -1,0 +1,60 @@
+type Foo struct
+	int a;
+	int b;
+end
+
+module Hello
+	int main()
+		printf("Hello, World\n");
+	end
+end
+
+type Number union
+	Int(int),
+	Float(float),
+	Complex(Complex),
+end
+
+type Any union
+with
+	R ~ Real
+begin
+	None,
+	Real(R),
+	Number(::Number),
+	Array(&Any),
+end
+
+async void corot()
+	for i in 0..5
+		printf("%d\n", i);
+		yield;
+	end
+end
+
+int main()
+	Hello::main();
+
+	Any t1 = Any::Real(42.69);
+
+	printf("t1 is ");
+	match t1 with
+		None => printf("None\n");
+		Real(_) | Number(_) => printf("a Number\n");
+		Array(a) => begin
+			usize len = a.len;
+			printf("an Array of length %zu\n", len);
+		end
+	end
+
+	Task task1 = Task::from(corot);
+	Task task2 = Task::from(corot);
+
+	ASync::Pool pool = from({task1, task2});
+
+	while !pool.done()
+		pool.poll();
+	end
+	
+	return 0;
+end
