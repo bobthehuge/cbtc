@@ -41,5 +41,6 @@ Token next_token(void);
 Token *collect_tokens(void);
 char *get_token_content(Token *tok);
 void err_tok_unexp(Token *tok);
+void tok_expect(Token *tok, size_t value);
 
 #endif

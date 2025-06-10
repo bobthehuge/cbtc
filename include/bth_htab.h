@@ -225,9 +225,10 @@ int bth_htab_add(
 
     struct bth_hpair *p = bth_htab_get(ht, key);
     
-    if (dst)
+    if (p)
     {
-        *dst = p;
+        if (dst)
+            *dst = p;
         return 0;
     }
 

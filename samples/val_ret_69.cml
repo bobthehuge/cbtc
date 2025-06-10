@@ -1,4 +1,6 @@
 int main()
-	int a = 69;
+	int a = 42;
+	int b = 69;
+	a = b;
 	return a;
 end

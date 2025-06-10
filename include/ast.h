@@ -42,7 +42,7 @@ struct FunDeclNode
 struct IdentNode
 {
     VType *type;
-    char *value;
+    char *name;
 };
 
 struct AssignNode
@@ -63,6 +63,8 @@ typedef struct Node
         struct ValueNode      *lit;
         struct IdentNode      *ident;
         struct AssignNode     *assign;
+        struct BinopNode      *binop;
+        struct UnopNode       *unop;
     } as;
 } Node;
 

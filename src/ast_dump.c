@@ -42,6 +42,13 @@ void ast_dump_vnode(struct VarDeclNode *v, int padd)
     ast_dump_node(v->init, padd + 2);
 }
 
+void ast_dump_assign(struct AssignNode *v, int padd)
+{
+    char *vt = type2str(v->dest->type);
+    printf("%*svar \"%s\" of type %s\n", padd, "", v->dest->name, vt);
+    ast_dump_node(v->value, padd + 2);
+}
+
 void ast_dump_retnode(Node *ret, int padd)
 {
     printf("%*sreturn\n", padd, " ");
@@ -50,7 +57,7 @@ void ast_dump_retnode(Node *ret, int padd)
 
 void ast_dump_idnode(struct IdentNode *id, int padd)
 {
-    printf("%*sident: %s\n", padd, "", id->value);
+    printf("%*sident: %s\n", padd, "", id->name);
 }
 
 void ast_dump_litnode(struct ValueNode *l, int padd)
@@ -79,6 +86,9 @@ void ast_dump_node(Node *node, int padd)
         break;
     case NK_VAR_DECL:
         ast_dump_vnode(node->as.vdecl, padd);
+        break;
+    case NK_EXPR_ASSIGN:
+        ast_dump_assign(node->as.assign, padd);
         break;
     case NK_RETURN:
         ast_dump_retnode(node->as.ret, padd);

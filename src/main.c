@@ -21,15 +21,6 @@ OPTION_TYPEDEF(size_t);
 #define BTH_HTAB_IMPLEMENTATION
 #include "../include/bth_htab.h"
 
-// void gen_sym_table(struct ModDeclNode *m)
-// {
-//     Node **ch = m->nodes;
-//     while (*ch)
-//     {
-//         if ((*ch)->kind == NK_EXPR_)
-
-//     }
-// }
 static FILE *fout = NULL;
 static HashTable *symbols = NULL;
 
@@ -142,13 +133,42 @@ int is_symbol(const char *bkey)
     return e;
 }
 
+HashPair *get_symbol(const char *bkey)
+{
+    char *key = m_strcat(ctx_currname(), "_");
+    key = m_strapp(key, bkey);
+
+    // printf("searching %s\n", key);
+    void *res = bth_htab_get(symbols, key);
+    free(key);
+
+    return res;
+}
+
+// detecting UNRESOLVED always returns false
+int typecmp(VType *t1, VType *t2)
+{
+    for (;;)
+    {
+        switch (*t1)
+        {
+        case VT_INT:
+            return *t1 == *t2;
+        case UNRESOLVED:
+            return 0;
+        default:
+            errx(1, "UNREACHABLE");
+        }
+    }
+}
+
 void bk_c_emit_ident(struct IdentNode *i)
 {
     char *key = m_strcat(ctx_currname(), "_");
-    key = m_strapp(key, i->value);
+    key = m_strapp(key, i->name);
 
-    if (*i->type == UNRESOLVED && !is_symbol(i->value))
-        err_emit("unknown symbol '%s' (%s)", i->value, key);
+    if (*i->type == UNRESOLVED && !is_symbol(i->name))
+        err_emit("unknown symbol '%s' (%s)", i->name, key);
     
     fprintf(fout, "%s", key);
     free(key);
@@ -157,6 +177,28 @@ void bk_c_emit_ident(struct IdentNode *i)
 void bk_c_emit_literal(struct ValueNode *lit)
 {
     fprintf(fout, "%d", lit->as.vt_int);
+}
+
+void bk_c_emit_assign(struct AssignNode *a)
+{
+    HashPair *kval = get_symbol(a->dest->name);
+
+    if (!kval)
+        err_emit("unknown symbol '%s'", a->dest->name);
+
+    Node *val = kval->value;
+
+    if (val->kind != NK_VAR_DECL)
+        err_emit("'%s' doens't refer to valid variable", a->dest->name);
+    
+    if (*a->dest->type != UNRESOLVED &&
+        !typecmp(a->dest->type, val->as.vdecl->type))
+            err_emit("'%s' isn't of type '%s'", a->dest->name,
+                type2str(a->dest->type));
+    
+    fprintf(fout, "    %s = ", kval->key);
+    bk_c_emit_node(a->value);
+    fprintf(fout, "\n");
 }
 
 void bk_c_emit_function(Node *root)
@@ -244,6 +286,9 @@ void bk_c_emit_node(Node *node)
     case NK_EXPR_LIT:
         bk_c_emit_literal(node->as.lit);
         break;
+    case NK_EXPR_ASSIGN:
+        bk_c_emit_assign(node->as.assign);
+        break;
     case NK_FUN_DECL:
         bk_c_emit_function(node);
         break;
@@ -274,23 +319,46 @@ int main(int argc, char **argv)
     }
 #endif
 
-    const char *file = NULL;
+    const char *fin_path = NULL;
+    char *fout_path = NULL;
 
-    if (argc > 1)
-        file = argv[1];
+    argv++;
+    argc--;
 
-    Node *ast_file1 = parse_file(file);
+    while (argc > 0)
+    {
+        if (!fout_path && !strcmp(*argv, "-o"))
+        {
+            argc -= 2;
+            argv++;
+            fout_path = *argv++;
+        }
+        else if (!fin_path)
+        {
+            argc--;
+            fin_path = *argv++;
+        }
+        else
+            errx(1, "Invalid CMD argument %s", *argv);
+    }
+
+    Node *ast_file1 = parse_file(fin_path);
     ast_dump_node(ast_file1, 0);
 
-    char *fname = file_basename(file);
-    char *fout_path = m_strdup(getenv("PWD"));
-    fout_path = m_strapp(fout_path, "/res.c");
-    // fout_path = m_strapp(fout_path, fname);
-    // fout_path = m_strapp(fout_path, ".c");
-    
+    if (!fout_path)
+    {
+        char *fname = file_basename(fin_path);
+        fout_path = m_strdup(getenv("PWD"));
+        fout_path = m_strapp(fout_path, "/res.c");
+    }
+
     symbols = bth_htab_init(16);
     
     fout = fopen(fout_path, "w");
+
+    if (!fout)
+        err(1, "Invalid out path");
+    
     bk_c_emit_node(ast_file1);
     fclose(fout);
 

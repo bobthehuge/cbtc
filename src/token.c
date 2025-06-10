@@ -111,18 +111,24 @@ void identify_token(Token *tok)
 
 Token next_token(void)
 {
-    Token tok = bth_lex_get_token(&l_lexer);
+    for (;;)
+    {
+        Token tok = bth_lex_get_token(&l_lexer);
 
-    char *tmp = get_token_content(&tok);
-    printf("token of '%s' (idx: %zu)\n", tmp, tok.idx);
-    free(tmp);
+        if (tok.kind == INVALID)
+            errx(1, "at %zu:%zu: INVALID", tok.col, tok.row);
 
-    if (tok.kind == INVALID)
-        errx(1, "at %zu:%zu: INVALID", tok.col, tok.row);
+        if (tok.kind == LK_DELIMITED)
+            continue;
 
-    identify_token(&tok);
+        identify_token(&tok);
 
-    return tok;
+        char *tmp = get_token_content(&tok);
+        printf("token of '%s' (idx: %zu)\n", tmp, tok.idx);
+        free(tmp);
+
+        return tok;
+    }
 }
 
 void rewind_lexer(size_t n)
@@ -181,4 +187,10 @@ void err_tok_unexp(Token *t)
 
     char *d = get_token_content(t);
     errx(1, "Unexpected token '%s' at %zu:%zu", d, t->row, t->col);
+}
+
+void tok_expect(Token *t, size_t v)
+{
+    if (t->idx != v)
+        err_tok_unexp(t);
 }
