@@ -9,6 +9,7 @@
 #include "../include/bth_lex.h"
 #include "../include/bth_types.h"
 
+extern bool g_print_token;
 static Lexer l_lexer;
 
 const char *KEYWORD_TABLE[] = {
@@ -20,6 +21,9 @@ const char *KEYWORD_TABLE[] = {
     "TK_SEMICOLON",    ";",
     "TK_OPAREN",       "(",
     "TK_CPAREN",       ")",
+    "TK_PLUS",         "+",
+    "TK_STAR",         "*",
+    "TK_UPPERSAND",    "&",
 };
 
 const size_t KEYWORD_COUNT = sizeof(KEYWORD_TABLE) / (sizeof(char *) * 2);
@@ -118,22 +122,36 @@ Token next_token(void)
         if (tok.kind == INVALID)
             errx(1, "at %zu:%zu: INVALID", tok.col, tok.row);
 
+        // skips comment
         if (tok.kind == LK_DELIMITED)
             continue;
 
         identify_token(&tok);
 
-        char *tmp = get_token_content(&tok);
-        printf("token of '%s' (idx: %zu)\n", tmp, tok.idx);
-        free(tmp);
+        if (g_print_token)
+        {
+            char *tmp = get_token_content(&tok);
+            printf("token of '%s' (idx: %zu)\n", tmp, tok.idx);
+            free(tmp);
+        }
 
         return tok;
     }
 }
 
-void rewind_lexer(size_t n)
+Token peak_token(void)
 {
-    l_lexer.cur -= n;
+    size_t cur = l_lexer.cur;
+    size_t row = l_lexer.row;
+    size_t col = l_lexer.col;
+
+    Token tok = next_token();
+
+    l_lexer.cur = cur;
+    l_lexer.row = row;
+    l_lexer.col = col;
+
+    return tok;
 }
 
 Token *collect_tokens(void)
@@ -180,17 +198,18 @@ char *get_token_content(Token *t)
     return m_strndup(t->begin, t->end - t->begin);
 }
 
-void err_tok_unexp(Token *t)
+void __err_tok_unexp(Token *t, const char *fun, int line)
 {
     if (!t)
         errx(1, "Unexpected NULL token");
 
     char *d = get_token_content(t);
-    errx(1, "Unexpected token '%s' at %zu:%zu", d, t->row, t->col);
+    errx(1, "%s:%d: Unexpected token '%s' at %zu:%zu", fun, line,
+         d, t->row, t->col);
 }
 
-void tok_expect(Token *t, size_t v)
+void __tok_expect(Token *t, size_t v, const char *fun, int line)
 {
     if (t->idx != v)
-        err_tok_unexp(t);
+        __err_tok_unexp(t, fun, line);
 }

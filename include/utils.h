@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include "vtype.h"
 
+// lmao
+#define HERE() printf("here\n")
+
 char *m_strndup(const char *str, size_t n);
 char *m_strdup(const char *str);
 char *m_strapp(char *dst, const char *src);

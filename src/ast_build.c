@@ -20,7 +20,26 @@ static Token cur = { .kind = LK_END };
 
 static char *ipath = NULL;
 
-long token_get_int(Token *tok)
+struct IdentNode *get_ident(Node *n)
+{
+    Node *root = n;
+
+    for (;;)
+    {
+        switch (n->kind)
+        {
+        case NK_EXPR_DEREF:
+            root = n->as.unop;
+            break;
+        case NK_EXPR_IDENT:
+            return root->as.ident;
+        default:
+            errx(1, "Can't get ident from kind %u", n->kind);
+        }
+    }
+}
+
+long get_token_int(Token *tok)
 {
     char *src = get_token_content(tok);
 
@@ -55,41 +74,186 @@ long token_get_int(Token *tok)
 
 VType *parse_type(void)
 {
-    VType *tt = smalloc(sizeof(VType));
+    VType *tt = smalloc(0);
+    size_t len = 0;
 
+redo:
     switch (cur.idx)
     {
-    case TK_INT:
-        *tt = VT_INT;
+    case TK_UPPERSAND:
+        tt = realloc(tt, sizeof(VType) * (len + 1));
+        tt[len++] = VT_PTR;
+        cur = next_token();
+        goto redo;
+    case TK_INT: case TK_INT_CST:
+        tt = realloc(tt, sizeof(VType) * (len + 1));
+        tt[len++] = VT_INT;
+        cur = next_token();
         break;
     default:
-        *tt = UNRESOLVED;
+        tt = realloc(tt, sizeof(VType) * (len + 1));
+        for (size_t i = len; i > 1; i--)
+            tt[i] = tt[i - 1];
+        tt[len++] = UNRESOLVED;
+        cur = next_token();
         break;
     }
 
     return tt;
 }
 
-Node *parse_expr(void)
+Node *parse_ident()
 {
+    Node *node = smalloc(sizeof(Node));
+    struct IdentNode *root = smalloc(sizeof(struct IdentNode));
+
+    node->kind = NK_EXPR_IDENT;
+    node->as.ident = root;
+
+    root->type = smalloc(sizeof(VType));
+    *root->type = UNRESOLVED;
+    root->name = get_token_content(&cur);
+
     cur = next_token();
-    Node *res = smalloc(sizeof(Node));
-    
+
+    return node;
+}
+
+Node *parse_lit()
+{
+    Node *node = smalloc(sizeof(Node));
+    struct ValueNode *root = smalloc(sizeof(struct ValueNode));
+
+    node->kind = NK_EXPR_LIT;
+    node->as.lit = root;
+
+    root->type = smalloc(sizeof(VType));
+    root->as.vt_int = get_token_int(&cur);
+
+    cur = next_token();
+
+    return node;
+}
+
+Node *parse_expr(void);
+
+Node *parse_value(void)
+{
+    Node *res;
+
     switch (cur.idx)
     {
     case TK_IDENTIFIER:
-        res->kind = NK_EXPR_IDENT;
-        res->as.ident = smalloc(sizeof(struct IdentNode));
-        res->as.ident->type = smalloc(sizeof(VType));
-        *res->as.ident->type = UNRESOLVED;
-        res->as.ident->name = get_token_content(&cur);
+        res = parse_ident();
         break;
     case TK_INT_CST:
-        res->kind = NK_EXPR_LIT;
-        res->as.lit = smalloc(sizeof(struct ValueNode));
-        res->as.lit->type = smalloc(sizeof(VType));
+        res = parse_lit();
         *res->as.lit->type = VT_INT;
-        res->as.lit->as.vt_int = token_get_int(&cur);
+        break;
+    default:
+        err_tok_unexp(&cur);
+    }
+
+    return res;
+}
+
+Node *parse_unary(void)
+{
+    Node *root = NULL;
+    Node *low = NULL;
+
+redo:
+    switch (cur.idx)
+    {
+    case TK_STAR:
+        {
+            Node *new = smalloc(sizeof(Node));
+            new->kind = NK_EXPR_DEREF;
+            new->as.unop = NULL;
+
+            if (low)
+                low->as.unop = new;
+            low = new;
+
+            if (!root)
+                root = new;
+
+            cur = next_token();
+        }
+        goto redo;
+    default:
+        if (!root)
+            root = parse_value();
+        else
+            low->as.unop = parse_value();
+            
+        return root;
+    }
+}
+
+Node *parse_sum(Node *n)
+{
+    cur = next_token(); // eat symbol
+
+    Node *sum = smalloc(sizeof(Node));
+    sum->as.binop = smalloc(sizeof(struct BinopNode));
+    sum->kind = NK_EXPR_ADD;
+    sum->as.binop->lhs = n;
+    sum->as.binop->rhs = parse_expr();
+
+    return sum;
+}
+
+Node *parse_product(Node *n)
+{
+    cur = next_token(); // eat symbol
+
+    Node *mul = smalloc(sizeof(Node));
+    mul->as.binop = smalloc(sizeof(struct BinopNode));
+    mul->kind = NK_EXPR_MUL;
+    mul->as.binop->lhs = n;
+    mul->as.binop->rhs = parse_unary();
+
+    return mul;
+}
+
+Node *parse_assign(Node *n)
+{
+    Node *node = smalloc(sizeof(Node));
+
+    node->kind = NK_EXPR_ASSIGN;
+
+    struct AssignNode *root = smalloc(sizeof(struct AssignNode));
+    node->as.assign = root;
+
+    root->dest = n;
+        
+    if (cur.idx == TK_EQUAL)
+    {
+        cur = next_token();
+        root->value = parse_expr();
+    }
+
+    return node;
+}
+
+Node *parse_expr(void)
+{
+    Node *res = parse_unary();
+
+redo:
+    switch (cur.idx)
+    {
+    case TK_EQUAL:
+        res = parse_assign(res);
+        break;
+    case TK_PLUS:
+        res = parse_sum(res);
+        break;
+    case TK_STAR:
+        res = parse_product(res);
+        goto redo;
+    case TK_SEMICOLON:
         break;
     default:
         err_tok_unexp(&cur);
@@ -111,44 +275,9 @@ Node *parse_var_decl(VType *bt, Token *id)
 
     if (cur.idx == TK_EQUAL)
     {
+        cur = next_token();
         root->init = parse_expr();
-        cur = next_token();
     }
-    else if (cur.idx != TK_SEMICOLON)
-        err_tok_unexp(&cur);
-
-    return node;
-}
-
-struct IdentNode *parse_ident()
-{
-    struct IdentNode *res = smalloc(sizeof(struct IdentNode));
-
-    res->type = parse_type();
-    res->name = get_token_content(&cur);
-
-    cur = next_token();
-    return res;
-}
-
-Node *parse_assign()
-{
-    Node *node = smalloc(sizeof(Node));
-
-    node->kind = NK_EXPR_ASSIGN;
-
-    struct AssignNode *root = smalloc(sizeof(struct AssignNode));
-    node->as.assign = root;
-
-    root->dest = parse_ident();
-        
-    if (cur.idx == TK_EQUAL)
-    {
-        root->value = parse_expr();
-        cur = next_token();
-    }
-    else if (cur.idx != TK_SEMICOLON)
-        err_tok_unexp(&cur);
 
     return node;
 }
@@ -157,10 +286,6 @@ Node *parse_fun_decl(VType *bt, Token *id);
 Node *parse_decl(VType *bt)
 {
     Token id = cur;
-
-    if (*bt != UNRESOLVED)
-        id = next_token();
-
     cur = next_token();
 
     switch (cur.idx)
@@ -171,7 +296,6 @@ Node *parse_decl(VType *bt)
     case TK_SEMICOLON:
         return parse_var_decl(bt, &id);
     default:
-        printf("here\n");
         err_tok_unexp(&cur);
     }
 
@@ -194,17 +318,17 @@ Node **parse_fun_body(void)
 
         switch (cur.idx)
         {
-        case TK_INT:
+        case TK_INT: case TK_UPPERSAND:
             nnode = parse_decl(parse_type());
             break;
-        case TK_IDENTIFIER:
-            nnode = parse_assign();
+        case TK_IDENTIFIER: case TK_STAR:
+            nnode = parse_expr();
             break;
         case TK_RETURN:
+            cur = next_token();
             nnode = smalloc(sizeof(Node *));
             nnode->kind = NK_RETURN;
             nnode->as.ret = parse_expr();
-            cur = next_token();
             break;
         default:
             err_tok_unexp(&cur);

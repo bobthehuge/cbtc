@@ -127,22 +127,32 @@ int is_valid_int(const char *s, long *res, int base)
     return 1;
 }
 
+#include <stdio.h>
 char *type2str(VType *bt)
 {
     char *res = malloc(1);
     *res = 0;
-    size_t len = 1;
-    size_t tlen = 0;
-
+redo:
     switch (*bt++)
     {
     case UNRESOLVED:
-        return m_strapp(res, "unresolved");
+        {
+            char *new = m_strcat("unresolved", res);
+            free(res);
+            res = new;
+        }
+        return res;
     case VT_INT:
-        return m_strapp(res, "int");
+        {
+            char *new = m_strcat("int", res);
+            free(res);
+            res = new;
+        }
+        return res;
+    case VT_PTR:
+        res = m_strapp(res, "*");
+        goto redo;
     default:
         errx(1, "broken type");
     }
-
-    res[len - 1] = 0;
 }

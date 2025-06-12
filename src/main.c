@@ -23,18 +23,23 @@ OPTION_TYPEDEF(size_t);
 
 static FILE *fout = NULL;
 static HashTable *symbols = NULL;
+// static HashTable *type_infos = NULL;
 
 #define MAX_CONTEXT 4
 static Node *ctx_stack[MAX_CONTEXT];
 static int ctx_count = 0;
 
 #include <stdarg.h>
-void err_emit(const char *fmt, ...)
+#define err_emit(fmt, ...) \
+    __err_emit(__func__, __LINE__, fmt,##__VA_ARGS__)
+
+void __err_emit(const char *fun, int line, const char *fmt, ...)
 {
     fclose(fout);
-
+    
     va_list ap;
     va_start(ap, fmt);
+    fprintf(stderr, "at %s:%u: ", fun, line);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     va_end(ap);
@@ -106,8 +111,6 @@ char *ctx_currname(void)
     return res;
 }
 
-void bk_c_emit_node(Node *node);
-
 int add_symbol(const char *bkey, Node *val)
 {
     char *key = ctx_currname();
@@ -154,6 +157,11 @@ int typecmp(VType *t1, VType *t2)
         {
         case VT_INT:
             return *t1 == *t2;
+        case VT_PTR:
+            if (*t1++ != *t2++)
+                return 0;
+            HERE();
+            break;
         case UNRESOLVED:
             return 0;
         default:
@@ -162,7 +170,43 @@ int typecmp(VType *t1, VType *t2)
     }
 }
 
-void bk_c_emit_ident(struct IdentNode *i)
+// NOTE: will be useful when custom typing will be
+// returns if a node can initialize a t2 type
+int can_init(Node *n, VType *t2)
+{
+    switch (n->kind)
+    {
+    case NK_EXPR_ADD: case NK_EXPR_MUL:
+        return can_init(n->as.binop->lhs, t2);
+    case NK_EXPR_DEREF:
+        return can_init(n->as.unop, t2 + 1);
+    case NK_EXPR_LIT:
+        return typecmp(n->as.lit->type, t2);
+    case NK_EXPR_ASSIGN:
+        switch(n->as.assign->dest->kind)
+        {
+        case NK_EXPR_DEREF:
+            t2 += 1;
+        // FALLTHROUGH
+        default:
+            return can_init(n->as.assign->value, t2);
+        }
+    case NK_EXPR_IDENT:
+        {
+            HashPair *v = get_symbol(n->as.ident->name);
+            if (!v)
+                err_emit("unknown symbol '%s'", n->as.ident->name);
+
+            HERE();
+            return can_init(v->value, t2);
+        }
+    default:
+        return 0;
+    }
+}
+
+void bk_c_emit_node(Node *node);
+static void bk_c_emit_ident(struct IdentNode *i)
 {
     char *key = m_strcat(ctx_currname(), "_");
     key = m_strapp(key, i->name);
@@ -174,34 +218,59 @@ void bk_c_emit_ident(struct IdentNode *i)
     free(key);
 }
 
-void bk_c_emit_literal(struct ValueNode *lit)
+static void bk_c_emit_literal(struct ValueNode *lit)
 {
     fprintf(fout, "%d", lit->as.vt_int);
 }
 
-void bk_c_emit_assign(struct AssignNode *a)
+static void bk_c_emit_binop(Node *root)
 {
-    HashPair *kval = get_symbol(a->dest->name);
+    const char *op = NULL;
 
-    if (!kval)
-        err_emit("unknown symbol '%s'", a->dest->name);
-
-    Node *val = kval->value;
-
-    if (val->kind != NK_VAR_DECL)
-        err_emit("'%s' doens't refer to valid variable", a->dest->name);
+    switch (root->kind)
+    {
+    case NK_EXPR_ADD:
+        op = "+";
+        break;
+    case NK_EXPR_MUL:
+        op = "*";
+        break;
+    default:
+        err_emit("unknown binary operator %u", root->kind);
+    }
     
-    if (*a->dest->type != UNRESOLVED &&
-        !typecmp(a->dest->type, val->as.vdecl->type))
-            err_emit("'%s' isn't of type '%s'", a->dest->name,
-                type2str(a->dest->type));
+    bk_c_emit_node(root->as.binop->lhs);
+    fprintf(fout, " %s ", op);
+    bk_c_emit_node(root->as.binop->rhs);
+}
+
+static void bk_c_emit_unop(Node *root)
+{
+    const char *op = NULL;
+
+    switch (root->kind)
+    {
+    case NK_EXPR_DEREF:
+        op = "*";
+        break;
+    default:
+        err_emit("unknown unary operator %u", root->kind);
+    }
     
-    fprintf(fout, "    %s = ", kval->key);
+    fprintf(fout, "%s", op);
+    bk_c_emit_node(root->as.unop);
+}
+
+static void bk_c_emit_assign(struct AssignNode *a)
+{
+    fprintf(fout, "    ");
+    bk_c_emit_node(a->dest);
+    fprintf(fout, " = ");
     bk_c_emit_node(a->value);
     fprintf(fout, "\n");
 }
 
-void bk_c_emit_function(Node *root)
+static void bk_c_emit_function(Node *root)
 {
     struct FunDeclNode *f = root->as.fdecl;
     if (!add_symbol(f->name, root))
@@ -225,7 +294,7 @@ void bk_c_emit_function(Node *root)
     (void)ctx_pop();
 }
 
-void bk_c_emit_variable(Node *root)
+static void bk_c_emit_variable(Node *root)
 {
     struct VarDeclNode *v = root->as.vdecl;
 
@@ -238,7 +307,6 @@ void bk_c_emit_variable(Node *root)
     char *ts = type2str(v->type);
     fprintf(fout, "%*s%s %s", (ctx_count - 1) * 4, "", ts, key);
     free(key);
-    free(ts);
 
     if (v->init)
     {
@@ -246,17 +314,18 @@ void bk_c_emit_variable(Node *root)
         bk_c_emit_node(v->init);
     }
 
+    free(ts);
     fprintf(fout, ";\n");
 }
 
-void bk_c_emit_return(struct Node *r)
+static void bk_c_emit_return(struct Node *r)
 {
     fprintf(fout, "%*sreturn ", (ctx_count - 1) * 4, "");
     bk_c_emit_node(r);
     fprintf(fout, ";\n");
 }
 
-void bk_c_emit_module(Node *root)
+static void bk_c_emit_module(Node *root)
 {
     struct ModDeclNode *m = root->as.mdecl;
 
@@ -286,6 +355,12 @@ void bk_c_emit_node(Node *node)
     case NK_EXPR_LIT:
         bk_c_emit_literal(node->as.lit);
         break;
+    case NK_EXPR_ADD: case NK_EXPR_MUL:
+        bk_c_emit_binop(node);
+        break;
+    case NK_EXPR_DEREF:
+        bk_c_emit_unop(node);
+        break;
     case NK_EXPR_ASSIGN:
         bk_c_emit_assign(node->as.assign);
         break;
@@ -302,9 +377,11 @@ void bk_c_emit_node(Node *node)
         bk_c_emit_return(node->as.ret);
         break;
     default:
-        errx(1, "Unexpected node kind %u", node->kind);
+        err_emit("Unexpected node kind %u", node->kind);
     }
 }
+
+bool g_print_token = false;
 
 int main(int argc, char **argv)
 {
@@ -322,6 +399,8 @@ int main(int argc, char **argv)
     const char *fin_path = NULL;
     char *fout_path = NULL;
 
+    bool dump_ast = false;
+
     argv++;
     argc--;
 
@@ -333,6 +412,18 @@ int main(int argc, char **argv)
             argv++;
             fout_path = *argv++;
         }
+        else if (!g_print_token && !strcmp(*argv, "--tok"))
+        {
+            argc--;
+            argv++;
+            g_print_token = true;
+        }
+        else if (!dump_ast && !strcmp(*argv, "--ast"))
+        {
+            argc--;
+            argv++;
+            dump_ast = true;
+        }
         else if (!fin_path)
         {
             argc--;
@@ -343,7 +434,12 @@ int main(int argc, char **argv)
     }
 
     Node *ast_file1 = parse_file(fin_path);
-    ast_dump_node(ast_file1, 0);
+
+    if (dump_ast)
+    {
+        ast_dump_node(ast_file1, 0);
+        exit(0);
+    }
 
     if (!fout_path)
     {

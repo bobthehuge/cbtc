@@ -4,6 +4,7 @@
 typedef enum
 {
     UNRESOLVED,
+    VT_PTR,
     VT_INT,
 } VType;
 

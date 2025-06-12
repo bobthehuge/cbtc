@@ -1,0 +1,5 @@
+int main()
+	int b = 31;
+	int a = 34 + b + 4;
+	return a;
+end

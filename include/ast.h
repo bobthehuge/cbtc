@@ -15,6 +15,9 @@ typedef enum
     NK_EXPR_LIT,
     NK_EXPR_IDENT,
     NK_EXPR_ASSIGN,
+    NK_EXPR_DEREF,
+    NK_EXPR_ADD,
+    NK_EXPR_MUL,
     NK_RETURN,
 } NodeKind;
 
@@ -47,8 +50,14 @@ struct IdentNode
 
 struct AssignNode
 {
-    struct IdentNode *dest;
+    struct Node *dest;
     struct Node *value;
+};
+
+struct BinopNode
+{
+    struct Node *lhs;
+    struct Node *rhs;
 };
 
 typedef struct Node
@@ -64,11 +73,12 @@ typedef struct Node
         struct IdentNode      *ident;
         struct AssignNode     *assign;
         struct BinopNode      *binop;
-        struct UnopNode       *unop;
+        struct Node           *unop;
     } as;
 } Node;
 
 Node *parse_file(const char *filepath);
 void ast_dump_node(Node *node, int padd);
+struct IdentNode *get_ident(Node *n);
 
 #endif
