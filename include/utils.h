@@ -16,5 +16,7 @@ char *file_basename(const char *path);
 int is_valid_int(const char *s, long *res, int base);
 
 char *type2str(VType *bt);
+// detecting UNRESOLVED always returns false
+int typecmp(VType *t1, VType *t2);
 
 #endif

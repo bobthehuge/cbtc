@@ -156,3 +156,24 @@ redo:
         errx(1, "broken type");
     }
 }
+
+// detecting UNRESOLVED always returns false
+int typecmp(VType *t1, VType *t2)
+{
+    for (;;)
+    {
+        switch (*t1)
+        {
+        case VT_INT:
+            return *t1 == *t2;
+        case VT_PTR:
+            if (*t1++ != *t2++)
+                return 0;
+            break;
+        case UNRESOLVED:
+            return 0;
+        default:
+            errx(1, "UNREACHABLE");
+        }
+    }
+}
