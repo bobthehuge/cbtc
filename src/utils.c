@@ -1,7 +1,16 @@
 #include <err.h>
 #include <errno.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
+
+#include "../include/bth_alloc.h"
 #include "../include/utils.h"
+
+void *m_scalloc(size_t s)
+{
+    return scalloc(1, s);
+}
 
 char *m_strndup(const char *str, size_t n)
 {
@@ -99,7 +108,7 @@ char *file_basename(const char *path)
     char *ext = strrchr(path, '.');
 
     if (!ext)
-        errx(1, "'%s' is not a valid filename", path);
+        perr("'%s' is not a valid filename", path);
 
     char *org = ext;
     while (org > path && *org != '/')
@@ -127,53 +136,67 @@ int is_valid_int(const char *s, long *res, int base)
     return 1;
 }
 
-#include <stdio.h>
-char *type2str(VType *bt)
+char *type2str(TypeInfo *t)
 {
-    char *res = malloc(1);
-    *res = 0;
-redo:
-    switch (*bt++)
+    char *tmp = malloc(t->refc + 1);
+    memset(tmp, '*', t->refc);
+    tmp[t->refc] = 0;
+
+    char *res;
+    
+    switch (t->base)
     {
     case UNRESOLVED:
-        {
-            char *new = m_strcat("unresolved", res);
-            free(res);
-            res = new;
-        }
-        return res;
+        res = m_strcat("unresolved", tmp);
+        break;
     case VT_INT:
-        {
-            char *new = m_strcat("int", res);
-            free(res);
-            res = new;
-        }
-        return res;
-    case VT_PTR:
-        res = m_strapp(res, "*");
+        res = m_strcat("int", tmp);
+        break;
+    default:
+        UNREACHABLE();
+    }
+
+    free(tmp);
+    return res;
+}
+
+TypeInfo *typeget(Node *_n)
+{
+    Node *n = _n;
+
+redo:
+    switch (n->kind)
+    {
+    case NK_EXPR_ADD: case NK_EXPR_MUL:
+        return &n->as.binop->type;
+    case NK_EXPR_DEREF:
+        return &n->as.unop->type;
+    case NK_EXPR_IDENT:
+        return &n->as.ident->type;
+    case NK_EXPR_LIT:
+        return &n->as.ident->type;
+    case NK_VAR_DECL:
+        return &n->as.vdecl->type;
+    case NK_FUN_DECL:
+        return &n->as.fdecl->ret;
+    case NK_EXPR_ASSIGN:
+        n = n->as.assign->dest;
         goto redo;
     default:
-        errx(1, "broken type");
+        return NULL;
     }
 }
 
-// detecting UNRESOLVED always returns false
-int typecmp(VType *t1, VType *t2)
+void __perr(const char *fun, int l, const char *fmt, ...)
 {
-    for (;;)
-    {
-        switch (*t1)
-        {
-        case VT_INT:
-            return *t1 == *t2;
-        case VT_PTR:
-            if (*t1++ != *t2++)
-                return 0;
-            break;
-        case UNRESOLVED:
-            return 0;
-        default:
-            errx(1, "UNREACHABLE");
-        }
-    }
+    va_list ap;
+    va_start(ap, fmt);
+
+    fprintf(stderr, "at %s:%d: ", fun, l);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+
+    va_end(ap);
+
+    exit(1);
 }

@@ -1,0 +1,8 @@
+int main()
+    &int a;
+    int v = 5;
+
+    *a = 42;
+
+    return *a + 5 * v;
+end

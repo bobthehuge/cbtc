@@ -4,14 +4,7 @@
 #include "../include/ast.h"
 #include "../include/utils.h"
 
-#define err_unexp_node(n) __err_unexp_node(n, __func__, __LINE__)
-void __err_unexp_node(Node *n, const char *fun, int line)
-{
-    if (!n)
-        errx(1, "Unexpected NULL node");
-
-    errx(1, "%s:%d: Unexpected node %u", fun, line, n->kind);
-}
+void ast_dump_node(Node *node, int padd);
 
 void ast_dump_mnode(struct ModDeclNode *m, int padd)
 {
@@ -29,7 +22,7 @@ void ast_dump_mnode(struct ModDeclNode *m, int padd)
 
 void ast_dump_fnode(struct FunDeclNode *f, int padd)
 {
-    char *frett = type2str(f->ret);
+    char *frett = type2str(&f->ret);
     printf("%*sfunction \"%s\" -> %s\n", padd, "", f->name, frett);
     free(frett);
 
@@ -45,24 +38,30 @@ void ast_dump_fnode(struct FunDeclNode *f, int padd)
 
 void ast_dump_vnode(struct VarDeclNode *v, int padd)
 {
-    char *vt = type2str(v->type);
-    printf("%*svar \"%s\": %s\n", padd, "", v->name, vt);
+    char *vt = type2str(&v->type);
+    printf("%*s(var \"%s\": %s", padd, "", v->name, vt);
     if (v->init)
+    {
+        printf("\n");
         ast_dump_node(v->init, padd + 2);
+        printf("%*s", padd, "");
+    }
+    printf(")\n");
 }
 
 void ast_dump_assign(Node *n, int padd)
 {
-    struct IdentNode *id = get_ident(n->as.assign->dest);
-    char *vt = type2str(id->type);
-    printf("%*sassign \"%s\": %s\n", padd, "", id->name, vt);
+    printf("%*s(assign\n", padd, "");
+    ast_dump_node(n->as.assign->dest, padd + 2);
     ast_dump_node(n->as.assign->value, padd + 2);
+    printf("%*s)\n", padd, "");
 }
 
 void ast_dump_retnode(Node *ret, int padd)
 {
-    printf("%*sreturn\n", padd, " ");
+    printf("%*s(return\n", padd, " ");
     ast_dump_node(ret, padd + 2);
+    printf("%*s)\n", padd, " ");
 }
 
 void ast_dump_idnode(struct IdentNode *id, int padd)
@@ -72,7 +71,7 @@ void ast_dump_idnode(struct IdentNode *id, int padd)
 
 void ast_dump_litnode(struct ValueNode *l, int padd)
 {
-    char *lt = type2str(l->type);
+    char *lt = type2str(&l->type);
     printf("%*slit: %s = ", padd, "", lt);
 
     printf("%d\n", l->as.vt_int);
@@ -114,7 +113,7 @@ void ast_dump_unop(Node *u, int padd)
     }
     
     printf("%*s(%s\n", padd, "", op);
-    ast_dump_node(u->as.unop, padd + 2);
+    ast_dump_node(u->as.unop->value, padd + 2);
     printf("%*s)\n", padd, "");
 }
 
@@ -152,4 +151,9 @@ void ast_dump_node(Node *node, int padd)
     default:
         err_unexp_node(node);
     }
+}
+
+void ast_dump(Node *root)
+{
+    ast_dump_mnode(root->as.mdecl, 0);
 }

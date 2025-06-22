@@ -186,7 +186,7 @@ struct bth_hpair *bth_htab_get(struct bth_htab *ht, char *key)
 
     struct bth_hpair *elt = ht->data[idx];
 
-    while (elt != NULL && BTH_HTAB_STRCMP(key, elt->key))
+    while (elt != NULL && (elt->hkey != h || BTH_HTAB_STRCMP(key, elt->key)))
         elt = elt->next;
 
     return elt;
@@ -258,7 +258,7 @@ struct bth_hpair *bth_htab_remove(struct bth_htab *ht, char *key)
     struct bth_hpair *elt = ht->data[idx];
     struct bth_hpair *prev = NULL;
 
-    while (elt && BTH_HTAB_STRCMP(key, elt->key))
+    while (elt && (elt->hkey != h || BTH_HTAB_STRCMP(key, elt->key)))
     {
         prev = elt;
         elt = elt->next;

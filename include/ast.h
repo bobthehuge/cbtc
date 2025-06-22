@@ -23,7 +23,7 @@ typedef enum
 
 struct VarDeclNode
 {
-    VType *type;
+    TypeInfo type;
     const char *name;
     struct Node *init;
 };
@@ -36,7 +36,7 @@ struct ModDeclNode
 
 struct FunDeclNode
 {
-    VType *ret;
+    TypeInfo ret;
     const char *name;
     struct VarDeclNode **args;
     struct Node **body;
@@ -44,7 +44,7 @@ struct FunDeclNode
 
 struct IdentNode
 {
-    VType *type;
+    TypeInfo type;
     char *name;
 };
 
@@ -56,13 +56,24 @@ struct AssignNode
 
 struct BinopNode
 {
+    TypeInfo type;
     struct Node *lhs;
     struct Node *rhs;
+};
+
+struct UnopNode
+{
+    TypeInfo type;
+    struct Node *value;
 };
 
 typedef struct Node
 {
     NodeKind kind;
+
+    size_t row;
+    size_t col;
+
     union
     {
         struct VarDeclNode    *vdecl;
@@ -73,12 +84,14 @@ typedef struct Node
         struct IdentNode      *ident;
         struct AssignNode     *assign;
         struct BinopNode      *binop;
-        struct Node           *unop;
+        struct UnopNode       *unop;
     } as;
 } Node;
 
 Node *parse_file(const char *filepath);
-void ast_dump_node(Node *node, int padd);
+Node *new_node(NodeKind k);
+void ast_dump(Node *node);
+void ast_desug(Node *node);
 struct IdentNode *get_ident(Node *n);
 
 #endif

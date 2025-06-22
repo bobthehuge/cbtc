@@ -7,7 +7,7 @@ unsigned int ctx_count = 0;
 void ctx_push(Node *c)
 {
     if (ctx_count >= 4)
-        errx(1, "Max active contexts reached");
+        perr("Max active contexts reached");
 
     ctx_stack[ctx_count++] = c;
 }
@@ -15,7 +15,7 @@ void ctx_push(Node *c)
 Node *ctx_peak(void)
 {
     if (ctx_count <= 0)
-        errx(1, "Invalid current context (none)");
+        perr("Invalid current context (none)");
 
     return ctx_stack[ctx_count-1];
 }
@@ -55,7 +55,7 @@ char *ctx_currname(void)
             free(tmp);
             break;
         default:
-            errx(1, "Invalid context detected");
+            perr("Invalid context detected");
         }
     }
 
@@ -84,41 +84,40 @@ void symtable_reset(size_t n)
 void symtable_free(void)
 {
     bth_htab_destroy(symbols);
+    symbols = NULL;
 }
 
-int add_symbol(const char *bkey, Node *val)
+int add_symbol(const char *key, Node *val)
 {
-    char *key = ctx_currname();
-    if (*key)
-       key = m_strapp(key, "_");
-    key = m_strapp(key, bkey);
+    // char *key = ctx_currname();
+    // if (*key)
+    //    key = m_strapp(key, "_");
+    // key = m_strapp(key, bkey);
 
     // printf("adding %s\n", key);
-    int e = bth_htab_add(symbols, key, val, NULL);
+    int e = bth_htab_add(symbols, (char *)key, val, NULL);
 
     return e;
 }
 
-int is_symbol(const char *bkey)
+int is_symbol(const char *key)
 {
-    char *key = m_strcat(ctx_currname(), "_");
-    key = m_strapp(key, bkey);
+    // char *key = m_strcat(ctx_currname(), "_");
+    // key = m_strapp(key, bkey);
 
     // printf("searching %s\n", key);
-    int e = bth_htab_get(symbols, key) != NULL;
-    free(key);
+    int e = bth_htab_get(symbols, (char *)key) != NULL;
 
     return e;
 }
 
-HashPair *get_symbol(const char *bkey)
+HashPair *get_symbol(const char *key)
 {
-    char *key = m_strcat(ctx_currname(), "_");
-    key = m_strapp(key, bkey);
+    // char *key = m_strcat(ctx_currname(), "_");
+    // key = m_strapp(key, bkey);
 
     // printf("searching %s\n", key);
-    void *res = bth_htab_get(symbols, key);
-    free(key);
+    void *res = bth_htab_get(symbols, (char *)key);
 
     return res;
 }

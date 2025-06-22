@@ -11,7 +11,7 @@
 
 #define BTH_OPTION_IMPLEMENTATION
 #include "../include/bth_option.h"
-OPTION_TYPEDEF(size_t);
+// OPTION_TYPEDEF(size_t);
 
 #define BTH_IO_IMPLEMENTATION
 #include "../include/bth_io.h"
@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     char *fout_path = NULL;
 
     bool dump_ast = false;
+    bool dump_irep = false;
 
     argv++;
     argc--;
@@ -65,6 +66,12 @@ int main(int argc, char **argv)
             argv++;
             dump_ast = true;
         }
+        else if (!dump_irep && !strcmp(*argv, "--irep"))
+        {
+            argc--;
+            argv++;
+            dump_irep = true;
+        }
         else if (!fin_path)
         {
             argc--;
@@ -74,17 +81,28 @@ int main(int argc, char **argv)
             errx(1, "Invalid CMD argument %s", *argv);
     }
 
+    if (dump_irep && dump_ast)
+        errx(1, "Can't dump ast and ir at the same time");
+
     Node *ast_file1 = parse_file(fin_path);
 
     if (dump_ast)
     {
-        ast_dump_node(ast_file1, 0);
+        ast_dump(ast_file1);
+        exit(0);
+    }
+
+    ast_desug(ast_file1);
+    
+    if (dump_irep)
+    {
+        ast_dump(ast_file1);
         exit(0);
     }
 
     if (!fout_path)
     {
-        char *fname = file_basename(fin_path);
+        // char *fname = file_basename(fin_path);
         fout_path = m_strdup(getenv("PWD"));
         fout_path = m_strapp(fout_path, "/res.c");
     }

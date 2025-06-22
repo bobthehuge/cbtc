@@ -10,7 +10,8 @@
 #include "../include/bth_types.h"
 
 extern bool g_print_token;
-static Lexer l_lexer;
+
+Lexer g_lexer;
 
 const char *KEYWORD_TABLE[] = {
     "TK_INT",          "int",
@@ -93,7 +94,7 @@ void set_lexer(const char *path)
     OPTION(size_t) buflen = readfn(&buf, 0, path);
     CHECK(buflen);
     
-    l_lexer = (Lexer){
+    g_lexer = (Lexer){
         .filename = path,
         .buffer = buf, .size = buflen.some,
         .col = 1, .row = 1,
@@ -117,7 +118,7 @@ Token next_token(void)
 {
     for (;;)
     {
-        Token tok = bth_lex_get_token(&l_lexer);
+        Token tok = bth_lex_get_token(&g_lexer);
 
         if (tok.kind == INVALID)
             errx(1, "at %zu:%zu: INVALID", tok.col, tok.row);
@@ -141,15 +142,15 @@ Token next_token(void)
 
 Token peak_token(void)
 {
-    size_t cur = l_lexer.cur;
-    size_t row = l_lexer.row;
-    size_t col = l_lexer.col;
+    size_t cur = g_lexer.cur;
+    size_t row = g_lexer.row;
+    size_t col = g_lexer.col;
 
     Token tok = next_token();
 
-    l_lexer.cur = cur;
-    l_lexer.row = row;
-    l_lexer.col = col;
+    g_lexer.cur = cur;
+    g_lexer.row = row;
+    g_lexer.col = col;
 
     return tok;
 }

@@ -8,32 +8,17 @@ static FILE *fout = NULL;
 
 #include <stdarg.h>
 #define err_emit(fmt, ...) \
-    __err_emit(__func__, __LINE__, fmt,##__VA_ARGS__)
+do \
+{ \
+    fclose(fout); \
+    perr(fmt,#__VA_ARGS__); \
+} while (0)
 
-void __err_emit(const char *fun, int line, const char *fmt, ...)
-{
-    fclose(fout);
-    
-    va_list ap;
-    va_start(ap, fmt);
-    fprintf(stderr, "at %s:%u: ", fun, line);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    exit(1);
-}
+static void bk_c_emit_node(Node *node);
 
-void bk_c_emit_node(Node *node);
 static void bk_c_emit_ident(struct IdentNode *i)
 {
-    char *key = m_strcat(ctx_currname(), "_");
-    key = m_strapp(key, i->name);
-
-    if (*i->type == UNRESOLVED && !is_symbol(i->name))
-        err_emit("unknown symbol '%s' (%s)", i->name, key);
-    
-    fprintf(fout, "%s", key);
-    free(key);
+    fprintf(fout, "%s", i->name);
 }
 
 static void bk_c_emit_literal(struct ValueNode *lit)
@@ -76,7 +61,7 @@ static void bk_c_emit_unop(Node *root)
     }
     
     fprintf(fout, "%s", op);
-    bk_c_emit_node(root->as.unop);
+    bk_c_emit_node(root->as.unop->value);
 }
 
 static void bk_c_emit_assign(struct AssignNode *a)
@@ -91,15 +76,11 @@ static void bk_c_emit_assign(struct AssignNode *a)
 static void bk_c_emit_function(Node *root)
 {
     struct FunDeclNode *f = root->as.fdecl;
-    if (!add_symbol(f->name, root))
-        err_emit("%s is already declared", f->name);
     
-    char *ts = type2str(f->ret);
+    char *ts = type2str(&f->ret);
     fprintf(fout, "%s %s", ts, f->name);
     free(ts);
     fprintf(fout, "(void)\n{\n");
-
-    ctx_push(root);
 
     Node **nodes = f->body;
     while (*nodes)
@@ -108,23 +89,19 @@ static void bk_c_emit_function(Node *root)
         nodes++;
     }
     fprintf(fout, "}\n");
-
-    (void)ctx_pop();
 }
 
-static void bk_c_emit_variable(Node *root)
+static void bk_c_emit_vdecl(Node *root)
 {
     struct VarDeclNode *v = root->as.vdecl;
 
-    char *key = m_strcat(ctx_currname(), "_");
-    key = m_strapp(key, v->name);
+    // char *key = m_strcat(ctx_currname(), "_");
+    // key = m_strapp(key, v->name);
 
-    if (!add_symbol(v->name, root))
-        err_emit("%s is already declared", v->name);
-
-    char *ts = type2str(v->type);
-    fprintf(fout, "%*s%s %s", (ctx_count - 1) * 4, "", ts, key);
-    free(key);
+    char *ts = type2str(&v->type);
+    fprintf(fout, "%*s%s %s", (ctx_count - 1) * 4, "", ts, v->name);
+    // free(key);
+    free(ts);
 
     if (v->init)
     {
@@ -132,7 +109,6 @@ static void bk_c_emit_variable(Node *root)
         bk_c_emit_node(v->init);
     }
 
-    free(ts);
     fprintf(fout, ";\n");
 }
 
@@ -147,23 +123,15 @@ static void bk_c_emit_module(Node *root)
 {
     struct ModDeclNode *m = root->as.mdecl;
 
-    // don't register file modules
-    if (*m->name != '/' && !add_symbol(m->name, root))
-        err_emit("%s is already declared", m->name);
-
-    ctx_push(root);
-    
     Node **nodes = m->nodes;
     while (*nodes)
     {
         bk_c_emit_node(*nodes);
         nodes++;
     }
-
-    (void)ctx_pop();
 }
 
-void bk_c_emit_node(Node *node)
+static void bk_c_emit_node(Node *node)
 {
     switch (node->kind)
     {
@@ -189,7 +157,7 @@ void bk_c_emit_node(Node *node)
         bk_c_emit_module(node);
         break;
     case NK_VAR_DECL:
-        bk_c_emit_variable(node);
+        bk_c_emit_vdecl(node);
         break;
     case NK_RETURN:
         bk_c_emit_return(node->as.ret);

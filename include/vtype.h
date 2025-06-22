@@ -4,13 +4,18 @@
 typedef enum
 {
     UNRESOLVED,
-    VT_PTR,
     VT_INT,
 } VType;
 
+typedef struct
+{
+    unsigned int refc;
+    VType base;
+} TypeInfo;
+
 struct ValueNode
 {
-    VType *type;
+    TypeInfo type;
     union
     {
         int vt_int;

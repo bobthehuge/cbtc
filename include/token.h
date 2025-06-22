@@ -7,7 +7,15 @@
 #include "bth_option.h"
 OPTION_TYPEDEF(size_t);
 
-#define err_tok_unexp(t) __err_tok_unexp(t, __func__, __LINE__)
+// #define err_tok_unexp(t) __err_tok_unexp(t, __func__, __LINE__)
+#define err_tok_unexp(t) \
+    perr(\
+        "in %s:\n\tUnexpected token of kind '%zu' at %zu:%zu",\
+        g_lexer.filename,\
+        t.kind,\
+        t.row,\
+        t.col\
+    )
 #define tok_expect(t, v) __tok_expect(t, v, __func__, __LINE__)
 
 typedef struct bth_lexer Lexer;
@@ -40,6 +48,8 @@ extern const char *DELIM_TABLE[];
 extern const size_t DELIM_COUNT;
 extern const char *SKIP_TABLE[];
 extern const size_t SKIP_COUNT;
+
+extern Lexer g_lexer;
 
 int check_prefix_collisions(size_t *h, size_t *s);
 void set_lexer(const char *path);
