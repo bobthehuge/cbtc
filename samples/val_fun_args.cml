@@ -5,9 +5,9 @@ int foo(int bar)
     return bar + 2;
 end
 
-&int bar(&int baz)
+&int bar(&int bla, int blou)
     // return baz + OFFSET;
-    return baz + 5;
+    return bla + blou;
 end
 
 int main()

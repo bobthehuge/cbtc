@@ -147,7 +147,7 @@ void ast_dump_unop(Node *u, int padd)
 void ast_dump_fcall(struct FunCallNode *fc, int padd)
 {
     char *frett = type2str(&fc->type);
-    printf("%*s(call \"%s\" -> %s\n", padd, "", fc->name, frett);
+    printf("%*s(call \"%s\": %s\n", padd, "", fc->name, frett);
     free(frett);
 
     Node **nodes = fc->args;

@@ -116,8 +116,7 @@ static void bk_c_emit_function(Node *root)
         {
             bk_c_emit_node(*nodes);
 
-            if (*(++nodes))
-                fprintf(fout, ",\n");
+            nodes++;
         }
 
         fprintf(fout, "){\n");
@@ -154,8 +153,7 @@ static void bk_c_emit_vdecl(Node *root)
     {
         // shouldn't be useful anymore as caller's argc should already have
         // been checked in desug
-        last->as.fdecl->argc--;
-        if (last->as.fdecl->argc > 1)
+        if (last->as.fdecl->argc-- > 1)
             fprintf(fout, ",");
         fprintf(fout, "\n");
     }
