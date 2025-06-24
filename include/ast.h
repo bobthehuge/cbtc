@@ -1,6 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
+#include "token.h"
 #include "vtype.h"
 
 #include "../include/bth_htab.h"
@@ -18,6 +19,7 @@ typedef enum
     NK_EXPR_DEREF,
     NK_EXPR_ADD,
     NK_EXPR_MUL,
+    NK_EXPR_FUNCALL,
     NK_RETURN,
 } NodeKind;
 
@@ -37,8 +39,9 @@ struct ModDeclNode
 struct FunDeclNode
 {
     TypeInfo ret;
+    uint argc;
     const char *name;
-    struct VarDeclNode **args;
+    struct Node **args;
     struct Node **body;
 };
 
@@ -46,6 +49,14 @@ struct IdentNode
 {
     TypeInfo type;
     char *name;
+};
+
+struct FunCallNode
+{
+    TypeInfo type;
+    uint argc;
+    const char *name;
+    struct Node **args;
 };
 
 struct AssignNode
@@ -71,6 +82,7 @@ typedef struct Node
 {
     NodeKind kind;
 
+    const char *afile;
     size_t row;
     size_t col;
 
@@ -85,11 +97,12 @@ typedef struct Node
         struct AssignNode     *assign;
         struct BinopNode      *binop;
         struct UnopNode       *unop;
+        struct FunCallNode    *fcall;
     } as;
 } Node;
 
 Node *parse_file(const char *filepath);
-Node *new_node(NodeKind k);
+Node *new_node(NodeKind k, Token *semholder);
 void ast_dump(Node *node);
 void ast_desug(Node *node);
 struct IdentNode *get_ident(Node *n);

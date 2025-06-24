@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "../include/context.h"
 
 static HashTable *symbols = NULL;
@@ -12,7 +14,7 @@ void ctx_push(Node *c)
     ctx_stack[ctx_count++] = c;
 }
 
-Node *ctx_peak(void)
+Node *ctx_peek(void)
 {
     if (ctx_count <= 0)
         perr("Invalid current context (none)");
@@ -22,7 +24,7 @@ Node *ctx_peak(void)
 
 Node *ctx_pop(void)
 {
-    Node *res = ctx_peak();
+    Node *res = ctx_peek();
     ctx_count--;
     return res;
 }
@@ -89,35 +91,40 @@ void symtable_free(void)
 
 int add_symbol(const char *key, Node *val)
 {
-    // char *key = ctx_currname();
-    // if (*key)
-    //    key = m_strapp(key, "_");
-    // key = m_strapp(key, bkey);
-
-    // printf("adding %s\n", key);
-    int e = bth_htab_add(symbols, (char *)key, val, NULL);
-
-    return e;
+    return bth_htab_add(symbols, (char *)key, val, NULL);
 }
 
 int is_symbol(const char *key)
 {
-    // char *key = m_strcat(ctx_currname(), "_");
-    // key = m_strapp(key, bkey);
-
-    // printf("searching %s\n", key);
-    int e = bth_htab_get(symbols, (char *)key) != NULL;
-
-    return e;
+    return bth_htab_get(symbols, (char *)key) != NULL;
 }
 
 HashPair *get_symbol(const char *key)
 {
-    // char *key = m_strcat(ctx_currname(), "_");
-    // key = m_strapp(key, bkey);
+    return bth_htab_get(symbols, (char *)key);
+}
 
-    // printf("searching %s\n", key);
-    void *res = bth_htab_get(symbols, (char *)key);
+void dump_symbols(void)
+{
+    for (size_t i = 0; i < symbols->cap; i++)
+    {
+        if (!symbols->data[i])
+            continue;
+        
+        HashPair *hp = symbols->data[i];
+        Node *val = hp->value;
 
-    return res;
+        printf("  [ \"%s\"(%u)", hp->key, val->kind);
+
+        hp = hp->next;
+
+        while (hp)
+        {
+            val = hp->value;
+            printf(", \"%s\"(%u)", hp->key, val->kind);
+            hp = hp->next;
+        }
+
+        printf("]\n");
+    }
 }

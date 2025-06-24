@@ -11,7 +11,7 @@
 extern unsigned int ctx_count;
 
 void ctx_push(Node *c);
-Node *ctx_peak(void);
+Node *ctx_peek(void);
 Node *ctx_pop(void);
 char *ctx_currname(void);
 
@@ -21,5 +21,6 @@ void symtable_free(void);
 int add_symbol(const char *bkey, Node *val);
 int is_symbol(const char *bkey);
 HashPair *get_symbol(const char *bkey);
+void dump_symbols(void);
 
 #endif

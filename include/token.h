@@ -35,6 +35,7 @@ typedef enum {
     TK_PLUS,
     TK_STAR,
     TK_UPPERSAND,
+    TK_COMMA,
 
     // other
     TK_IDENTIFIER,
@@ -49,6 +50,7 @@ extern const size_t DELIM_COUNT;
 extern const char *SKIP_TABLE[];
 extern const size_t SKIP_COUNT;
 
+extern bool g_print_token;
 extern Lexer g_lexer;
 
 int check_prefix_collisions(size_t *h, size_t *s);

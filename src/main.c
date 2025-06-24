@@ -4,6 +4,7 @@
 
 #include "../include/ast.h"
 #include "../include/c_backend.h"
+#include "../include/context.h"
 #include "../include/utils.h"
 
 #define BTH_LEX_IMPLEMENTATION
@@ -22,8 +23,6 @@
 #define BTH_HTAB_IMPLEMENTATION
 #include "../include/bth_htab.h"
 
-bool g_print_token = false;
-
 int main(int argc, char **argv)
 {
 #if CHECK_PREFIX_COLLISIONS
@@ -37,11 +36,14 @@ int main(int argc, char **argv)
     }
 #endif
 
+    g_print_token = false;
+
     const char *fin_path = NULL;
     char *fout_path = NULL;
 
     bool dump_ast = false;
     bool dump_irep = false;
+    bool dump_syms = false;
 
     argv++;
     argc--;
@@ -72,6 +74,12 @@ int main(int argc, char **argv)
             argv++;
             dump_irep = true;
         }
+        else if (!dump_syms && !strcmp(*argv, "--syms"))
+        {
+            argc--;
+            argv++;
+            dump_syms = true;
+        }
         else if (!fin_path)
         {
             argc--;
@@ -91,9 +99,16 @@ int main(int argc, char **argv)
         ast_dump(ast_file1);
         exit(0);
     }
-
+    
     ast_desug(ast_file1);
     
+    if (dump_syms)
+    {
+        printf("---- SYMBOLS ----\n");
+        dump_symbols();
+        printf("----   END   ----\n");
+    }
+
     if (dump_irep)
     {
         ast_dump(ast_file1);
@@ -106,7 +121,7 @@ int main(int argc, char **argv)
         fout_path = m_strdup(getenv("PWD"));
         fout_path = m_strapp(fout_path, "/res.c");
     }
-
+    
     bk_c_emit(ast_file1, fout_path);
     
     return 0;

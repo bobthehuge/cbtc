@@ -66,11 +66,29 @@ static void bk_c_emit_unop(Node *root)
 
 static void bk_c_emit_assign(struct AssignNode *a)
 {
-    fprintf(fout, "    ");
+    fprintf(fout, "%*.s", (ctx_count - 1) * 4, "");
     bk_c_emit_node(a->dest);
     fprintf(fout, " = ");
     bk_c_emit_node(a->value);
-    fprintf(fout, "\n");
+    fprintf(fout, ";\n");
+}
+
+static void bk_c_emit_funcall(Node *root)
+{
+    struct FunCallNode *fc = root->as.fcall;
+    fprintf(fout, "%s(", fc->name);
+
+    Node **nodes = fc->args;
+
+    while (*nodes)
+    {
+        bk_c_emit_node(*nodes++);
+
+        if (*nodes)
+            fprintf(fout, ", ");
+    }
+
+    fprintf(fout, ")");
 }
 
 static void bk_c_emit_function(Node *root)
@@ -80,27 +98,48 @@ static void bk_c_emit_function(Node *root)
     char *ts = type2str(&f->ret);
     fprintf(fout, "%s %s", ts, f->name);
     free(ts);
-    fprintf(fout, "(void)\n{\n");
 
-    Node **nodes = f->body;
+    Node **nodes = f->args;
+    fprintf(fout, "(");
+
+    ctx_push(root);
+
+    if (!f->argc)
+    {
+        fprintf(fout, "void)\n{\n");
+    }
+    else
+    {
+        fprintf(fout, "\n");
+
+        while (*nodes)
+        {
+            bk_c_emit_node(*nodes);
+
+            if (*(++nodes))
+                fprintf(fout, ",\n");
+        }
+
+        fprintf(fout, "){\n");
+    }
+    nodes = f->body;
+
     while (*nodes)
     {
         bk_c_emit_node(*nodes);
         nodes++;
     }
+
+    (void)ctx_pop();
+
     fprintf(fout, "}\n");
 }
 
 static void bk_c_emit_vdecl(Node *root)
 {
     struct VarDeclNode *v = root->as.vdecl;
-
-    // char *key = m_strcat(ctx_currname(), "_");
-    // key = m_strapp(key, v->name);
-
     char *ts = type2str(&v->type);
     fprintf(fout, "%*s%s %s", (ctx_count - 1) * 4, "", ts, v->name);
-    // free(key);
     free(ts);
 
     if (v->init)
@@ -109,7 +148,19 @@ static void bk_c_emit_vdecl(Node *root)
         bk_c_emit_node(v->init);
     }
 
-    fprintf(fout, ";\n");
+    Node *last = ctx_peek();
+
+    if (last->kind == NK_FUN_DECL && last->as.fdecl->argc)
+    {
+        // shouldn't be useful anymore as caller's argc should already have
+        // been checked in desug
+        last->as.fdecl->argc--;
+        if (last->as.fdecl->argc > 1)
+            fprintf(fout, ",");
+        fprintf(fout, "\n");
+    }
+    else
+        fprintf(fout, ";\n");
 }
 
 static void bk_c_emit_return(struct Node *r)
@@ -124,11 +175,18 @@ static void bk_c_emit_module(Node *root)
     struct ModDeclNode *m = root->as.mdecl;
 
     Node **nodes = m->nodes;
+    ctx_push(root);
+
     while (*nodes)
     {
         bk_c_emit_node(*nodes);
         nodes++;
+
+        if (*nodes)
+            fprintf(fout, "\n");
     }
+
+    (void)ctx_pop();
 }
 
 static void bk_c_emit_node(Node *node)
@@ -149,6 +207,9 @@ static void bk_c_emit_node(Node *node)
         break;
     case NK_EXPR_ASSIGN:
         bk_c_emit_assign(node->as.assign);
+        break;
+    case NK_EXPR_FUNCALL:
+        bk_c_emit_funcall(node);
         break;
     case NK_FUN_DECL:
         bk_c_emit_function(node);
@@ -174,7 +235,7 @@ void bk_c_emit(Node *ast, const char *fout_path)
 
     if (!fout)
         err(1, "Invalid out path");
-    
+
     bk_c_emit_node(ast);
     fclose(fout);
 }

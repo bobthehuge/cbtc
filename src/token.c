@@ -9,9 +9,8 @@
 #include "../include/bth_lex.h"
 #include "../include/bth_types.h"
 
-extern bool g_print_token;
-
 Lexer g_lexer;
+bool g_print_token;
 
 const char *KEYWORD_TABLE[] = {
     "TK_INT",          "int",
@@ -25,6 +24,7 @@ const char *KEYWORD_TABLE[] = {
     "TK_PLUS",         "+",
     "TK_STAR",         "*",
     "TK_UPPERSAND",    "&",
+    "TK_COMMA",        ",",
 };
 
 const size_t KEYWORD_COUNT = sizeof(KEYWORD_TABLE) / (sizeof(char *) * 2);

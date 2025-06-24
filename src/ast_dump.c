@@ -23,17 +23,36 @@ void ast_dump_mnode(struct ModDeclNode *m, int padd)
 void ast_dump_fnode(struct FunDeclNode *f, int padd)
 {
     char *frett = type2str(&f->ret);
-    printf("%*sfunction \"%s\" -> %s\n", padd, "", f->name, frett);
+    printf("%*s(function \"%s\": %s\n", padd, "", f->name, frett);
     free(frett);
 
-    Node **nodes = f->body;
+    Node **nodes = f->args;
+
+    printf("%*s(args", padd + 2, "");
+    if (!f->argc)
+    {
+        printf(" None)\n");
+    }
+    else
+    {
+        printf("\n");
+        while (*nodes)
+        {
+            ast_dump_node(*nodes, padd + 4);
+            nodes++;
+        }
+        printf("%*s)\n", padd + 2, "");
+    }
+
+    nodes = f->body;
+
     while (*nodes)
     {
         ast_dump_node(*nodes, padd + 2);
         nodes++;
     }
         
-    printf("%*send\n", padd, " ");
+    printf("%*s)\n", padd, " ");
 }
 
 void ast_dump_vnode(struct VarDeclNode *v, int padd)
@@ -59,22 +78,27 @@ void ast_dump_assign(Node *n, int padd)
 
 void ast_dump_retnode(Node *ret, int padd)
 {
-    printf("%*s(return\n", padd, " ");
+    char *lt = type2str(typeget(ret));
+
+    printf("%*s(return: %s\n", padd, " ", lt);
     ast_dump_node(ret, padd + 2);
     printf("%*s)\n", padd, " ");
 }
 
 void ast_dump_idnode(struct IdentNode *id, int padd)
 {
-    printf("%*sident \"%s\"\n", padd, "", id->name);
+    char *lt = type2str(&id->type);
+    printf("%*s(ident \"%s\": %s)\n", padd, "", id->name, lt);
 }
 
 void ast_dump_litnode(struct ValueNode *l, int padd)
 {
     char *lt = type2str(&l->type);
-    printf("%*slit: %s = ", padd, "", lt);
+    printf("%*s(lit ", padd, "");
 
-    printf("%d\n", l->as.vt_int);
+    printf("\"%d\"", l->as.vt_int);
+
+    printf(": %s)\n", lt);
 }
 
 void ast_dump_binop(Node *b, int padd)
@@ -93,7 +117,10 @@ void ast_dump_binop(Node *b, int padd)
         err_unexp_node(b);
     }
     
-    printf("%*s(%s\n", padd, "", op);
+    char *lt = type2str(&b->as.binop->type);
+    printf("%*s(%s: %s\n", padd, "", op, lt);
+    free(lt);
+    
     ast_dump_node(b->as.binop->lhs, padd + 2);
     ast_dump_node(b->as.binop->rhs, padd + 2);
     printf("%*s)\n", padd, "");
@@ -117,6 +144,32 @@ void ast_dump_unop(Node *u, int padd)
     printf("%*s)\n", padd, "");
 }
 
+void ast_dump_fcall(struct FunCallNode *fc, int padd)
+{
+    char *frett = type2str(&fc->type);
+    printf("%*s(call \"%s\" -> %s\n", padd, "", fc->name, frett);
+    free(frett);
+
+    Node **nodes = fc->args;
+
+    printf("%*s(args", padd + 2, "");
+    if (!fc->argc)
+    {
+        printf(" None)\n");
+    }
+    else
+    {
+        printf("\n");
+        while (*nodes)
+        {
+            ast_dump_node(*nodes, padd + 4);
+            nodes++;
+        }
+        printf("%*s)\n", padd + 2, "");
+    }
+    printf("%*s)\n", padd, "");
+}
+
 void ast_dump_node(Node *node, int padd)
 {
     switch (node->kind)
@@ -135,6 +188,9 @@ void ast_dump_node(Node *node, int padd)
         break;
     case NK_EXPR_ASSIGN:
         ast_dump_assign(node, padd);
+        break;
+    case NK_EXPR_FUNCALL:
+        ast_dump_fcall(node->as.fcall, padd);
         break;
     case NK_FUN_DECL:
         ast_dump_fnode(node->as.fdecl, padd);

@@ -175,6 +175,8 @@ redo:
         return &n->as.ident->type;
     case NK_EXPR_LIT:
         return &n->as.ident->type;
+    case NK_EXPR_FUNCALL:
+        return &n->as.fcall->type;
     case NK_VAR_DECL:
         return &n->as.vdecl->type;
     case NK_FUN_DECL:

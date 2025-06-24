@@ -1,8 +1,15 @@
 #include <assert.h>
 #include <stdarg.h>
-#include <stdio.h>
 
 #include "../include/context.h"
+
+#define derr(fmt, ...) \
+do \
+{ \
+    perr( \
+        "\n  in %s:\n    Faulty node at %zu:%zu: "fmt, \
+        root->afile, root->row, root->col,##__VA_ARGS__); \
+} while (0)
 
 void ast_desug_node(Node *n);
 
@@ -16,17 +23,17 @@ void ast_desug_idnode(Node *root)
     char *key = m_strcat(ctx_currname(), "_");
     key = m_strapp(key, i->name);
 
-    i->name = key;
-
     if (i->type.base == UNRESOLVED)
     {
-        HashPair *hp = get_symbol(i->name);
+        HashPair *hp = get_symbol(key);
 
         if (!hp)
-            perr("Unknown symbol '%s' (%s)", i->name, key);
+            derr("Unknown symbol '%s' (%s)", i->name, key);
         
         i->type = *typeget(hp->value);
     }
+
+    i->name = key;
 }
 
 void ast_desug_binop(Node *root)
@@ -39,9 +46,9 @@ void ast_desug_binop(Node *root)
     TypeInfo *rt = typeget(b->rhs);
 
     if (!lt)
-        perr("Invalid binary operation involving kind %zu", b->lhs->kind);
+        derr("Invalid binary operation involving kind %zu", b->lhs->kind);
     if (!rt)
-        perr("Invalid binary operation involving kind %zu", b->rhs->kind);
+        derr("Invalid binary operation involving kind %zu", b->rhs->kind);
 
     char *str_lt = type2str(lt);
     char *str_rt = type2str(rt);
@@ -52,22 +59,22 @@ void ast_desug_binop(Node *root)
     {
     case NK_EXPR_ADD:
         if (lt->refc > 0 && (rt->refc > 0 || rt->base != VT_INT))
-            perr("Can't add '%s' with '%s'", str_lt, str_rt);
+            derr("Can't add '%s' with '%s'", str_lt, str_rt);
         else if (rt->refc > 0)
         {
             if (lt->refc > 0 || lt->base != VT_INT)
-                perr("Can't add '%s' with '%s'", str_lt, str_rt);
+                derr("Can't add '%s' with '%s'", str_lt, str_rt);
 
             b->type = *rt;
         }
         else if (lt->base != rt->base)
-            perr("Can't add '%s' with '%s'", str_lt, str_rt);
+            derr("Can't add '%s' with '%s'", str_lt, str_rt);
 
         break;
     case NK_EXPR_MUL:
         if (lt->refc || rt->refc || lt->base != VT_INT || rt->base != VT_INT
             ||lt->base != rt->base)
-            perr("Can't mul '%s' with '%s'", str_lt, str_rt);
+            derr("Can't mul '%s' with '%s'", str_lt, str_rt);
         break;
     default:
         UNREACHABLE();
@@ -84,7 +91,7 @@ void ast_desug_unop(Node *root)
         u->type = *typeget(u->value);
 
         if (u->type.refc == 0)
-            perr("'%s' is not a pointer", type2str(&u->type));
+            derr("'%s' is not a pointer", type2str(&u->type));
 
         u->type.refc--;
         break;
@@ -106,7 +113,7 @@ void ast_desug_assign(Node *root)
     assert(d->base != UNRESOLVED && v->base != UNRESOLVED);
     
     if (d->refc != v->refc || d->base != v->base)
-        perr("Can't init '%s' from '%s'", type2str(d), type2str(v));
+        derr("Can't init '%s' from '%s'", type2str(d), type2str(v));
 }
 
 void ast_desug_vnode(Node *root)
@@ -120,8 +127,8 @@ void ast_desug_vnode(Node *root)
     
     v->name = key;
     
-    if (!add_symbol(key, root))
-        perr("%s is already declared", v->name);
+    // if (!add_symbol(key, root))
+    //     derr("%s is already declared", v->name);
     
     if (v->init)
     {
@@ -129,25 +136,83 @@ void ast_desug_vnode(Node *root)
         TypeInfo *ti = typeget(v->init);
 
         if (ti->refc != v->type.refc || ti->base != v->type.base)
-            perr("Can't init '%s' from '%s'", type2str(ti), type2str(&v->type));
+            derr("Can't init '%s' from '%s'", type2str(ti), type2str(&v->type));
     }
 }
 
 void ast_desug_retnode(Node *root)
 {
+    Node *last = ctx_peek();
+
+    if (!last)
+        derr("Invalid return outside of function context");
+
     ast_desug_node(root->as.ret);
+
+    TypeInfo funret = last->as.fdecl->ret;
+    TypeInfo *ret = typeget(root->as.ret);
+
+    if (funret.refc != ret->refc || funret.base != ret->base)
+    {
+        const char *str1 = type2str(&funret);
+        const char *str2 = type2str(ret);
+        derr("Can't return '%s' from '%s'", str1, str2);
+    }
+}
+
+void ast_desug_fcall(Node *root)
+{
+    struct FunCallNode *fc = root->as.fcall;
+
+    HashPair *hp = get_symbol(fc->name);
+
+    if (!hp)
+        derr("Unknown symbol '%s'");
+
+    Node *n = hp->value;
+
+    if (n->kind != NK_FUN_DECL)
+        derr("'%s' is not a function", fc->name);
+
+    struct FunDeclNode *fun = n->as.fdecl;
+
+    if (fun->argc != fc->argc)
+        derr("Argc mismatch, expected %u", n->as.fdecl->argc);
+
+    for (uint i = 0; i < fc->argc; i++)
+    {
+        TypeInfo *t1 = typeget(fun->args[i]);
+        TypeInfo *t2 = typeget(fc->args[i]);
+
+        if (t1->refc != t2->refc || t1->base != t2->base)
+        {
+            const char *str1 = type2str(t1);
+            const char *str2 = type2str(t2);
+            derr("Arg[%u]: Can't init '%s' from '%s'", i, str1, str2);
+        }
+    }
+
+    fc->type = fun->ret;
 }
 
 void ast_desug_fnode(Node *root)
 {
     struct FunDeclNode *f = root->as.fdecl;
 
-    if (!add_symbol(f->name, root))
-        perr("%s is already declared", f->name);
-    
     ctx_push(root);
 
-    Node **nodes = f->body;
+    Node **nodes = f->args;
+    
+    while (*nodes)
+    {
+        if ((*nodes)->kind != NK_VAR_DECL)
+            derr("Unexpected node of kind '%zu'", (*nodes)->kind);
+
+        ast_desug_node(*nodes);
+        nodes++;
+    }
+
+    nodes = f->body;
     while (*nodes)
     {
         ast_desug_node(*nodes);
@@ -163,7 +228,7 @@ void ast_desug_mnode(Node *root)
 
     // don't register file modules
     if (*m->name != '/' && !add_symbol(m->name, root))
-        perr("%s is already declared", m->name);
+        derr("%s is already declared", m->name);
 
     ctx_push(root);
 
@@ -196,6 +261,9 @@ void ast_desug_node(Node *n)
     case NK_EXPR_ASSIGN:
         ast_desug_assign(n);
         break;
+    case NK_EXPR_FUNCALL:
+        ast_desug_fcall(n);
+        break;
     case NK_FUN_DECL:
         ast_desug_fnode(n);
         break;
@@ -215,6 +283,6 @@ void ast_desug_node(Node *n)
 
 void ast_desug(Node *root)
 {
-    symtable_reset(16);
+    // symtable_reset(16);
     ast_desug_node(root);
 }
