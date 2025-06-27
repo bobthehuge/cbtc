@@ -56,6 +56,9 @@ static void bk_c_emit_unop(Node *root)
     case NK_EXPR_DEREF:
         op = "*";
         break;
+    case NK_EXPR_REF:
+        op = "&";
+        break;
     default:
         err_emit("unknown unary operator %u", root->kind);
     }
@@ -200,7 +203,7 @@ static void bk_c_emit_node(Node *node)
     case NK_EXPR_ADD: case NK_EXPR_MUL:
         bk_c_emit_binop(node);
         break;
-    case NK_EXPR_DEREF:
+    case NK_EXPR_DEREF: case NK_EXPR_REF:
         bk_c_emit_unop(node);
         break;
     case NK_EXPR_ASSIGN:

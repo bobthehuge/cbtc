@@ -51,7 +51,7 @@ Node *new_node(NodeKind k, Token *semholder)
         dst = &root->as.binop;
         s = sizeof(struct BinopNode);
         break;
-    case NK_EXPR_DEREF:
+    case NK_EXPR_DEREF: case NK_EXPR_REF:
         dst = &root->as.unop;
         s = sizeof(struct UnopNode);
         break;
@@ -99,7 +99,7 @@ struct IdentNode *get_ident(Node *n)
 redo:
     switch (root->kind)
     {
-    case NK_EXPR_DEREF:
+    case NK_EXPR_DEREF: case NK_EXPR_REF:
         root = n->as.unop->value;
         goto redo;
     case NK_EXPR_IDENT:
@@ -143,9 +143,24 @@ long get_token_int(Token *tok)
     return lnum;
 }
 
-TypeInfo parse_type(void)
+char *get_token_str(Token *tok)
 {
-    TypeInfo res;
+    if (tok->end - tok->begin <= 2)
+        return m_strdup("");
+    return m_strndup(tok->begin+1, tok->end - tok->begin-1);
+}
+
+char get_token_char(Token *tok)
+{
+    if (tok->end - tok->begin > 3)
+        perr("Invalid char literal %s", get_token_str(tok));
+
+    return *(tok->begin + 1);
+}
+
+Type parse_type(void)
+{
+    Type res;
     res.refc = 0;
 
 redo:
@@ -185,9 +200,26 @@ Node *parse_lit()
     Node *node = new_node(NK_EXPR_LIT, &cur);
     struct ValueNode *root = node->as.lit;
 
-    root->type.refc = 0;
-    root->type.base = VT_INT;
-    root->as.vt_int = get_token_int(&cur);
+    switch (cur.idx)
+    {
+    case TK_INT_CST:
+        root->type.refc = 0;
+        root->type.base = VT_INT;
+        root->as.vt_int = get_token_int(&cur);
+        break;
+    case TK_STR_CST:
+        root->type.refc = 1;
+        root->type.base = VT_CHAR;
+        root->as.vt_str = get_token_str(&cur);
+        break;
+    case TK_CHAR_CST:
+        root->type.refc = 0;
+        root->type.base = VT_CHAR;
+        root->as.vt_char = get_token_char(&cur);
+        break;
+    default:
+        perr("Invalid literal constant of kind %zu", cur.idx);
+    }
 
     cur = next_token();
 
@@ -244,8 +276,9 @@ Node *parse_value(void)
             res = parse_funcall(res);
         break;
     case TK_INT_CST:
+    case TK_CHAR_CST:
+    case TK_STR_CST:
         res = parse_lit();
-        res->as.lit->type.base = VT_INT;
         break;
     default:
         err_tok_unexp(cur);
@@ -262,9 +295,10 @@ Node *parse_unary(void)
 redo:
     switch (cur.idx)
     {
-    case TK_STAR:
+    case TK_STAR: case TK_UPPERSAND:
         {
-            Node *new = new_node(NK_EXPR_DEREF, &cur);
+            NodeKind kind = cur.idx == TK_STAR ? NK_EXPR_DEREF : NK_EXPR_REF;
+            Node *new = new_node(kind, &cur);
 
             if (low)
                 low->as.unop->value = new;
@@ -353,7 +387,7 @@ redo:
     return res;
 }
 
-Node *parse_var_decl(TypeInfo bt, Token *id)
+Node *parse_var_decl(Type bt, Token *id)
 {
     Node *node = new_node(NK_VAR_DECL, id);
     struct VarDeclNode *root = node->as.vdecl;
@@ -376,9 +410,9 @@ Node *parse_var_decl(TypeInfo bt, Token *id)
     return node;
 }
 
-Node *parse_fun_decl(TypeInfo bt, Token *id);
+Node *parse_fun_decl(Type bt, Token *id);
 
-Node *parse_decl(TypeInfo bt)
+Node *parse_decl(Type bt)
 {
     Token id = cur;
     cur = next_token();
@@ -412,7 +446,7 @@ Node **parse_fun_body(void)
 
         switch (cur.idx)
         {
-        case TK_INT: case TK_UPPERSAND:
+        case TK_INT: case TK_CHAR: case TK_UPPERSAND:
             nnode = parse_decl(parse_type());
             break;
         case TK_IDENTIFIER: case TK_STAR:
@@ -439,7 +473,7 @@ Node **parse_fun_body(void)
     return nodes;
 }
 
-Node *parse_fun_decl(TypeInfo bt, Token *id)
+Node *parse_fun_decl(Type bt, Token *id)
 {
     Node *node = new_node(NK_FUN_DECL, id);
     struct FunDeclNode *root = node->as.fdecl;

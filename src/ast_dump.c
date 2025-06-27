@@ -96,7 +96,23 @@ void ast_dump_litnode(struct ValueNode *l, int padd)
     char *lt = type2str(&l->type);
     printf("%*s(lit ", padd, "");
 
-    printf("\"%d\"", l->as.vt_int);
+    switch (l->type.base)
+    {
+    case VT_INT:
+        printf("%d", l->as.vt_int);
+        break;
+    case VT_CHAR:
+        if (l->type.refc)
+            printf("\"%s\"", l->as.vt_str);
+        else
+            printf("\'%c\'", l->as.vt_char);
+        break;
+    case UNRESOLVED:
+        printf("??");
+        break;
+    default:
+        UNREACHABLE();
+    }
 
     printf(": %s)\n", lt);
 }
@@ -134,6 +150,9 @@ void ast_dump_unop(Node *u, int padd)
     {
     case NK_EXPR_DEREF:
         op = "deref";
+        break;
+    case NK_EXPR_REF:
+        op = "ref";
         break;
     default:
         err_unexp_node(u);
@@ -183,7 +202,7 @@ void ast_dump_node(Node *node, int padd)
     case NK_EXPR_ADD: case NK_EXPR_MUL:
         ast_dump_binop(node, padd);
         break;
-    case NK_EXPR_DEREF:
+    case NK_EXPR_DEREF: case NK_EXPR_REF:
         ast_dump_unop(node, padd);
         break;
     case NK_EXPR_ASSIGN:

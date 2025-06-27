@@ -14,6 +14,7 @@ bool g_print_token;
 
 const char *KEYWORD_TABLE[] = {
     "TK_INT",          "int",
+    "TK_CHAR",         "char",
     "TK_END",          "end",
     "TK_RETURN",       "return",
 
@@ -30,8 +31,8 @@ const char *KEYWORD_TABLE[] = {
 const size_t KEYWORD_COUNT = sizeof(KEYWORD_TABLE) / (sizeof(char *) * 2);
 
 const char *DELIM_TABLE[] = {
-    "TK_STRING_LITERAL", "\"", "\"",
-    "TK_CHAR_LITERAL",   "\'", "\'",
+    "TK_STR_LIT",        "\"", "\"",
+    "TK_CHR_LIT",        "\'", "\'",
     "TK_COMMENT",        "//", "\n",
     "TK_CPP_COMMENT",    "/*", "*/",
 };
@@ -112,6 +113,10 @@ void identify_token(Token *tok)
 {
     if (*tok->begin >= '0' && *tok->begin <= '9')
         tok->idx = TK_INT_CST;
+    else if (*tok->begin == '"' && *(tok->end - 1) == '"')
+        tok->idx = TK_STR_CST;
+    else if (*tok->begin == '\'' && *(tok->end - 1) == '\'')
+        tok->idx = TK_CHAR_CST;
 }
 
 Token next_token(void)
@@ -124,7 +129,7 @@ Token next_token(void)
             errx(1, "at %zu:%zu: INVALID", tok.col, tok.row);
 
         // skips comment
-        if (tok.kind == LK_DELIMITED)
+        if (tok.kind == LK_DELIMITED && tok.idx >= 6)
             continue;
 
         identify_token(&tok);

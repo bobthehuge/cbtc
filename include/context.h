@@ -5,7 +5,7 @@
 #include "../include/ast.h"
 #include "../include/bth_htab.h"
 #include "../include/utils.h"
-#include "../include/vtype.h"
+#include "../include/types.h"
 
 #define MAX_CONTEXT 4
 extern unsigned int ctx_count;

@@ -24,6 +24,7 @@ typedef struct bth_lex_token Token;
 typedef enum {
     // Keywords
     TK_INT,
+    TK_CHAR,
     TK_END,
     TK_RETURN,
 
@@ -40,6 +41,8 @@ typedef enum {
     // other
     TK_IDENTIFIER,
     TK_INT_CST,
+    TK_STR_CST,
+    TK_CHAR_CST,
     TK_UNKNOWN
 } TokenKind;
 

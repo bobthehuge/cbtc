@@ -2,7 +2,7 @@
 #define AST_H
 
 #include "token.h"
-#include "vtype.h"
+#include "types.h"
 
 #include "../include/bth_htab.h"
 typedef struct bth_htab HashTable;
@@ -17,6 +17,7 @@ typedef enum
     NK_EXPR_IDENT,
     NK_EXPR_ASSIGN,
     NK_EXPR_DEREF,
+    NK_EXPR_REF,
     NK_EXPR_ADD,
     NK_EXPR_MUL,
     NK_EXPR_FUNCALL,
@@ -25,7 +26,7 @@ typedef enum
 
 struct VarDeclNode
 {
-    TypeInfo type;
+    Type type;
     const char *name;
     struct Node *init;
 };
@@ -38,7 +39,7 @@ struct ModDeclNode
 
 struct FunDeclNode
 {
-    TypeInfo ret;
+    Type ret;
     uint argc;
     const char *name;
     struct Node **args;
@@ -47,13 +48,13 @@ struct FunDeclNode
 
 struct IdentNode
 {
-    TypeInfo type;
+    Type type;
     char *name;
 };
 
 struct FunCallNode
 {
-    TypeInfo type;
+    Type type;
     uint argc;
     const char *name;
     struct Node **args;
@@ -67,14 +68,14 @@ struct AssignNode
 
 struct BinopNode
 {
-    TypeInfo type;
+    Type type;
     struct Node *lhs;
     struct Node *rhs;
 };
 
 struct UnopNode
 {
-    TypeInfo type;
+    Type type;
     struct Node *value;
 };
 

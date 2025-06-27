@@ -12,5 +12,8 @@ end
 
 int main()
     int t1 = foo(4) * 2;
+    &int t2 = bar(&t1, 2);
+    char c = 't';
+    &char hello = "Hello, World!\n";
     return 0;
 end

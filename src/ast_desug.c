@@ -42,8 +42,8 @@ void ast_desug_binop(Node *root)
     ast_desug_node(b->lhs);
     ast_desug_node(b->rhs);
 
-    TypeInfo *lt = typeget(b->lhs);
-    TypeInfo *rt = typeget(b->rhs);
+    Type *lt = typeget(b->lhs);
+    Type *rt = typeget(b->rhs);
 
     if (!lt)
         derr("Invalid binary operation involving kind %zu", b->lhs->kind);
@@ -73,7 +73,7 @@ void ast_desug_binop(Node *root)
         break;
     case NK_EXPR_MUL:
         if (lt->refc || rt->refc || lt->base != VT_INT || rt->base != VT_INT
-            ||lt->base != rt->base)
+            || lt->base != rt->base)
             derr("Can't mul '%s' with '%s'", str_lt, str_rt);
         break;
     default:
@@ -89,11 +89,20 @@ void ast_desug_unop(Node *root)
     case NK_EXPR_DEREF:
         ast_desug_node(u->value);
         u->type = *typeget(u->value);
-
+        
         if (u->type.refc == 0)
             derr("'%s' is not a pointer", type2str(&u->type));
 
         u->type.refc--;
+        break;
+    case NK_EXPR_REF:
+        ast_desug_node(u->value);
+        u->type = *typeget(u->value);
+
+        if (u->type.base == VT_INT && u->value->kind == NK_EXPR_LIT)
+            derr("Can't ref type '%s'", type2str(&u->type));
+
+        u->type.refc++;
         break;
     default:
         UNREACHABLE();
@@ -107,12 +116,12 @@ void ast_desug_assign(Node *root)
     ast_desug_node(a->dest);
     ast_desug_node(a->value);
 
-    TypeInfo *d = typeget(a->dest);
-    TypeInfo *v = typeget(a->value);
+    Type *d = typeget(a->dest);
+    Type *v = typeget(a->value);
 
     assert(d->base != UNRESOLVED && v->base != UNRESOLVED);
     
-    if (d->refc != v->refc || d->base != v->base)
+    if (typecmp(d, v))
         derr("Can't init '%s' from '%s'", type2str(d), type2str(v));
 }
 
@@ -127,15 +136,12 @@ void ast_desug_vnode(Node *root)
     
     v->name = key;
     
-    // if (!add_symbol(key, root))
-    //     derr("%s is already declared", v->name);
-    
     if (v->init)
     {
         ast_desug_node(v->init);
-        TypeInfo *ti = typeget(v->init);
+        Type *ti = typeget(v->init);
 
-        if (ti->refc != v->type.refc || ti->base != v->type.base)
+        if (typecmp(ti, &v->type))
             derr("Can't init '%s' from '%s'", type2str(ti), type2str(&v->type));
     }
 }
@@ -149,10 +155,10 @@ void ast_desug_retnode(Node *root)
 
     ast_desug_node(root->as.ret);
 
-    TypeInfo funret = last->as.fdecl->ret;
-    TypeInfo *ret = typeget(root->as.ret);
+    Type funret = last->as.fdecl->ret;
+    Type *ret = typeget(root->as.ret);
 
-    if (funret.refc != ret->refc || funret.base != ret->base)
+    if (typecmp(&funret, ret))
     {
         const char *str1 = type2str(&funret);
         const char *str2 = type2str(ret);
@@ -181,10 +187,12 @@ void ast_desug_fcall(Node *root)
 
     for (uint i = 0; i < fc->argc; i++)
     {
-        TypeInfo *t1 = typeget(fun->args[i]);
-        TypeInfo *t2 = typeget(fc->args[i]);
+        ast_desug_node(fc->args[i]);
 
-        if (t1->refc != t2->refc || t1->base != t2->base)
+        Type *t1 = typeget(fun->args[i]);
+        Type *t2 = typeget(fc->args[i]);
+
+        if (typecmp(t1, t2))
         {
             const char *str1 = type2str(t1);
             const char *str2 = type2str(t2);
@@ -255,7 +263,7 @@ void ast_desug_node(Node *n)
     case NK_EXPR_ADD: case NK_EXPR_MUL:
         ast_desug_binop(n);
         break;
-    case NK_EXPR_DEREF:
+    case NK_EXPR_DEREF: case NK_EXPR_REF:
         ast_desug_unop(n);
         break;
     case NK_EXPR_ASSIGN:

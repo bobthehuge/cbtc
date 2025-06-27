@@ -3,6 +3,7 @@
 #include "../include/context.h"
 
 static HashTable *symbols = NULL;
+
 static Node *ctx_stack[MAX_CONTEXT];
 unsigned int ctx_count = 0;
 

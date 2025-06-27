@@ -136,7 +136,7 @@ int is_valid_int(const char *s, long *res, int base)
     return 1;
 }
 
-char *type2str(TypeInfo *t)
+char *type2str(Type *t)
 {
     char *tmp = malloc(t->refc + 1);
     memset(tmp, '*', t->refc);
@@ -152,6 +152,9 @@ char *type2str(TypeInfo *t)
     case VT_INT:
         res = m_strcat("int", tmp);
         break;
+    case VT_CHAR:
+        res = m_strcat("char", tmp);
+        break;
     default:
         UNREACHABLE();
     }
@@ -160,7 +163,7 @@ char *type2str(TypeInfo *t)
     return res;
 }
 
-TypeInfo *typeget(Node *_n)
+Type *typeget(Node *_n)
 {
     Node *n = _n;
 
@@ -169,7 +172,7 @@ redo:
     {
     case NK_EXPR_ADD: case NK_EXPR_MUL:
         return &n->as.binop->type;
-    case NK_EXPR_DEREF:
+    case NK_EXPR_DEREF: case NK_EXPR_REF:
         return &n->as.unop->type;
     case NK_EXPR_IDENT:
         return &n->as.ident->type;
@@ -187,6 +190,35 @@ redo:
     default:
         return NULL;
     }
+}
+
+// returns:
+// 0 if t1 == t2
+// 1 else
+// 
+int typecmp(Type *t1, Type *t2)
+{
+    if (!t1 || !t2)
+        perr("NULL type caught");
+
+    return t1->refc != t2->refc || t1->base != t2->base;
+}
+
+uint64_t typehash(Type *ty)
+{
+    char *sh = malloc(sizeof(Type) + 1);
+
+    char *src = (char *)ty;
+
+    for (uint i = 0; i < sizeof(Type); i++)
+        sh[i] = src[i] + 1;
+
+    sh[sizeof(Type)] = 0;
+
+    uint64_t h = djb2(sh);
+    free(sh);
+    
+    return h;
 }
 
 void __perr(const char *fun, int l, const char *fmt, ...)

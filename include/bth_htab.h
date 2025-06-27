@@ -164,6 +164,7 @@ void bth_htab_clear(struct bth_htab *ht)
         while (elt)
         {
             struct bth_hpair *nxt = elt->next;
+            BTH_HTAB_FREE(elt->key);
             BTH_HTAB_FREE(elt);
             elt = nxt;
         }
