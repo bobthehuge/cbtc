@@ -138,28 +138,25 @@ int is_valid_int(const char *s, long *res, int base)
 
 char *type2str(Type *t)
 {
-    char *tmp = malloc(t->refc + 1);
-    memset(tmp, '*', t->refc);
-    tmp[t->refc] = 0;
-
-    char *res;
+    char *res = malloc(t->refc + 1);
+    memset(res, '&', t->refc);
+    res[t->refc] = 0;
     
     switch (t->base)
     {
     case UNRESOLVED:
-        res = m_strcat("unresolved", tmp);
+        res = m_strapp(res, "unresolved");
         break;
     case VT_INT:
-        res = m_strcat("int", tmp);
+        res = m_strapp(res, "int");
         break;
     case VT_CHAR:
-        res = m_strcat("char", tmp);
+        res = m_strapp(res, "char");
         break;
     default:
         UNREACHABLE();
     }
 
-    free(tmp);
     return res;
 }
 
@@ -204,21 +201,30 @@ int typecmp(Type *t1, Type *t2)
     return t1->refc != t2->refc || t1->base != t2->base;
 }
 
-uint64_t typehash(Type *ty)
+// char *typehkey(Type *ty)
+// {
+//     char *sh = malloc(sizeof(Type) + 1);
+
+//     char *src = (char *)ty;
+
+//     for (uint i = 0; i < sizeof(Type); i++)
+//         sh[i] = src[i] + 1;
+
+//     sh[sizeof(Type)] = 0;
+
+//     return sh;
+// }
+
+// get a valid cstr representation from delimited raw bytes
+char *gethashkey(const char *raw, size_t len)
 {
-    char *sh = malloc(sizeof(Type) + 1);
+    char *hk = malloc(len + 1);
 
-    char *src = (char *)ty;
+    for (size_t i = 0; i < len; i++)
+        hk[i] = raw[i] % 255 + 1;
 
-    for (uint i = 0; i < sizeof(Type); i++)
-        sh[i] = src[i] + 1;
-
-    sh[sizeof(Type)] = 0;
-
-    uint64_t h = djb2(sh);
-    free(sh);
-    
-    return h;
+    hk[len] = 0;
+    return hk;
 }
 
 void __perr(const char *fun, int l, const char *fmt, ...)

@@ -1,17 +1,22 @@
 #ifndef VTYPE_H
 #define VTYPE_H
 
+#include "bth_htab.h"
+
 typedef enum
 {
     UNRESOLVED,
-    VT_INT,
     VT_CHAR,
+    VT_INT,
+    VT_ANY,
+    VT_CUSTOM, // need research in a type table
 } VType;
 
 typedef struct
 {
-    unsigned int refc;
-    VType base;
+    uint refc;
+    uint poly:1; // polymophic: scope is local
+    uint id:31;
 } Type;
 
 struct ValueNode
@@ -25,15 +30,17 @@ struct ValueNode
     } as;
 };
 
-typedef struct
-{
-    const char *name;
-} Trait;
+// typedef struct
+// {
+//     const char *name;
+//     HashTable *types;
+//     HashTable *impls;
+// } TraitInfo;
 
 typedef struct
 {
-    Type type;
-    Trait **traits;
+    Type repr;
+    HashTable *traits;
 } TypeInfo;
 
 #endif

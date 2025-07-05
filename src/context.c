@@ -74,7 +74,7 @@ char *ctx_currname(void)
 
 void symtable_set(size_t n)
 {
-    symbols = bth_htab_init(n);
+    symbols = bth_htab_new(n, 2, 2);
 }
 
 void symtable_reset(size_t n)
@@ -92,7 +92,7 @@ void symtable_free(void)
 
 int add_symbol(const char *key, Node *val)
 {
-    return bth_htab_add(symbols, (char *)key, val, NULL);
+    return bth_htab_add(symbols, (char *)key, val) > 0;
 }
 
 int is_symbol(const char *key)
@@ -100,32 +100,23 @@ int is_symbol(const char *key)
     return bth_htab_get(symbols, (char *)key) != NULL;
 }
 
-HashPair *get_symbol(const char *key)
+HashData *get_symbol(const char *key)
 {
     return bth_htab_get(symbols, (char *)key);
 }
 
 void dump_symbols(void)
 {
-    for (size_t i = 0; i < symbols->cap; i++)
+    printf("Symbols: \n");
+    for (size_t i = 1; i < symbols->size; i++)
     {
-        if (!symbols->data[i])
+        if (!symbols->data[i] || !symbols->data[i])
             continue;
         
-        HashPair *hp = symbols->data[i];
+        HashData *hp = symbols->data[i];
         Node *val = hp->value;
 
-        printf("  [ \"%s\"(%u)", hp->key, val->kind);
-
-        hp = hp->next;
-
-        while (hp)
-        {
-            val = hp->value;
-            printf(", \"%s\"(%u)", hp->key, val->kind);
-            hp = hp->next;
-        }
-
-        printf("]\n");
+        printf("    \"%s\"(%u)\n", hp->key, val->kind);
     }
+    printf("\n");
 }

@@ -14,6 +14,33 @@ do \
     perr(fmt,#__VA_ARGS__); \
 } while (0)
 
+static char *type2crep(Type *t)
+{
+    char *tmp = malloc(t->refc + 1);
+    memset(tmp, '*', t->refc);
+    tmp[t->refc] = 0;
+
+    char *res;
+    
+    switch (t->base)
+    {
+    case UNRESOLVED:
+        res = m_strcat("unresolved", tmp);
+        break;
+    case VT_INT:
+        res = m_strcat("int", tmp);
+        break;
+    case VT_CHAR:
+        res = m_strcat("char", tmp);
+        break;
+    default:
+        UNREACHABLE();
+    }
+
+    free(tmp);
+    return res;
+}
+
 static void bk_c_emit_node(Node *node);
 
 static void bk_c_emit_ident(struct IdentNode *i)
@@ -98,7 +125,7 @@ static void bk_c_emit_function(Node *root)
 {
     struct FunDeclNode *f = root->as.fdecl;
     
-    char *ts = type2str(&f->ret);
+    char *ts = type2crep(&f->ret);
     fprintf(fout, "%s %s", ts, f->name);
     free(ts);
 
@@ -140,7 +167,7 @@ static void bk_c_emit_function(Node *root)
 static void bk_c_emit_vdecl(Node *root)
 {
     struct VarDeclNode *v = root->as.vdecl;
-    char *ts = type2str(&v->type);
+    char *ts = type2crep(&v->type);
     fprintf(fout, "%*s%s %s", (ctx_count - 1) * 4, "", ts, v->name);
     free(ts);
 

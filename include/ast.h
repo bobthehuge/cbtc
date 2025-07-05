@@ -4,10 +4,6 @@
 #include "token.h"
 #include "types.h"
 
-#include "../include/bth_htab.h"
-typedef struct bth_htab HashTable;
-typedef struct bth_hpair HashPair;
-
 typedef enum
 {
     NK_VAR_DECL,
@@ -78,6 +74,43 @@ struct UnopNode
     Type type;
     struct Node *value;
 };
+
+struct TraitNode
+{
+    HashTable *types;
+    HashTable *funs;
+};
+
+struct ImplNode
+{
+    const char *trait;
+    HashTable *types;
+    // struct FunDeclNode **funs;
+    HashTable *funs;
+};
+
+// impl Add<Int, Char, Int>
+// begin
+//     int add(int lhs, char rhs)
+//         return lhs + rhs;
+//     end
+// end
+//
+// =>
+// 
+// TraitNode *tr = get_trait("Add");
+// ImplNode *im = new ImplNode;
+//
+// im->trait = "Add";
+//
+// for idx, dt in decltypes.list()
+//     can_impl(get_traits(dt), tr.types.iget(idx));
+//     im.types = get_traits(dt).clone();
+// end
+//
+// im->funs = tr->funs.clone();
+//
+// tr.impls.add(hashkey(decltypes), im);
 
 typedef struct Node
 {

@@ -21,6 +21,12 @@
 #define UNREACHABLE() perr("UNREACHABLE (wtf \?\?)")
 #define TODO() perr("TODO: UNIMPLEMENTED")
 
+typedef struct
+{
+    size_t len;
+    void *data;
+} varray;
+
 char *m_strndup(const char *str, size_t n);
 char *m_strdup(const char *str);
 char *m_strapp(char *dst, const char *src);
@@ -33,7 +39,10 @@ int is_valid_int(const char *s, long *res, int base);
 char *type2str(Type *t);
 Type *typeget(Node *n);
 int typecmp(Type *t1, Type *t2);
-uint64_t typehash(Type *ty);
+// char *typehkey(Type *ty);
+
+// get a valid cstr representation from delimited raw bytes
+char *gethashkey(const char *raw, size_t len);
 
 void __perr(const char *fun, int l, const char *fmt, ...);
 

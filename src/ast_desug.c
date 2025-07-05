@@ -25,7 +25,7 @@ void ast_desug_idnode(Node *root)
 
     if (i->type.base == UNRESOLVED)
     {
-        HashPair *hp = get_symbol(key);
+        HashData *hp = get_symbol(key);
 
         if (!hp)
             derr("Unknown symbol '%s' (%s)", i->name, key);
@@ -170,7 +170,7 @@ void ast_desug_fcall(Node *root)
 {
     struct FunCallNode *fc = root->as.fcall;
 
-    HashPair *hp = get_symbol(fc->name);
+    HashData *hp = get_symbol(fc->name);
 
     if (!hp)
         derr("Unknown symbol '%s'");

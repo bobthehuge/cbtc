@@ -10,13 +10,6 @@
 
 #define EXPECT(k) tok_expect(&cur, k)
 
-// typedef struct
-// {
-//     int is_file:1;
-//     int is_mod:1;
-// } CtxFlags;
-
-// static CtxFlags ctx;
 static Token cur = { .kind = LK_END };
 
 Node *new_node(NodeKind k, Token *semholder)

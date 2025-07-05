@@ -20,7 +20,7 @@ void symtable_reset(size_t n);
 void symtable_free(void);
 int add_symbol(const char *bkey, Node *val);
 int is_symbol(const char *bkey);
-HashPair *get_symbol(const char *bkey);
+HashData *get_symbol(const char *bkey);
 void dump_symbols(void);
 
 #endif
