@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "../include/ast.h"
+#include "../include/types.h"
 #include "../include/utils.h"
 
 void ast_dump_node(Node *node, int padd);
@@ -22,7 +23,7 @@ void ast_dump_mnode(struct ModDeclNode *m, int padd)
 
 void ast_dump_fnode(struct FunDeclNode *f, int padd)
 {
-    char *frett = type2str(&f->ret);
+    char *frett = type2str(f->ret);
     printf("%*s(function \"%s\": %s\n", padd, "", f->name, frett);
     free(frett);
 
@@ -57,7 +58,7 @@ void ast_dump_fnode(struct FunDeclNode *f, int padd)
 
 void ast_dump_vnode(struct VarDeclNode *v, int padd)
 {
-    char *vt = type2str(&v->type);
+    char *vt = type2str(v->type);
     printf("%*s(var \"%s\": %s", padd, "", v->name, vt);
     if (v->init)
     {
@@ -87,22 +88,22 @@ void ast_dump_retnode(Node *ret, int padd)
 
 void ast_dump_idnode(struct IdentNode *id, int padd)
 {
-    char *lt = type2str(&id->type);
+    char *lt = type2str(id->type);
     printf("%*s(ident \"%s\": %s)\n", padd, "", id->name, lt);
 }
 
 void ast_dump_litnode(struct ValueNode *l, int padd)
 {
-    char *lt = type2str(&l->type);
+    char *lt = type2str(l->type);
     printf("%*s(lit ", padd, "");
 
-    switch (l->type.base)
+    switch (l->type->id)
     {
     case VT_INT:
         printf("%d", l->as.vt_int);
         break;
     case VT_CHAR:
-        if (l->type.refc)
+        if (l->type->refc)
             printf("\"%s\"", l->as.vt_str);
         else
             printf("\'%c\'", l->as.vt_char);
@@ -133,7 +134,7 @@ void ast_dump_binop(Node *b, int padd)
         err_unexp_node(b);
     }
     
-    char *lt = type2str(&b->as.binop->type);
+    char *lt = type2str(b->as.binop->type);
     printf("%*s(%s: %s\n", padd, "", op, lt);
     free(lt);
     
@@ -165,7 +166,7 @@ void ast_dump_unop(Node *u, int padd)
 
 void ast_dump_fcall(struct FunCallNode *fc, int padd)
 {
-    char *frett = type2str(&fc->type);
+    char *frett = type2str(fc->type);
     printf("%*s(call \"%s\": %s\n", padd, "", fc->name, frett);
     free(frett);
 

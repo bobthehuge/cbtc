@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "../include/bth_alloc.h"
 #include "../include/context.h"
 
 static HashTable *symbols = NULL;
@@ -18,7 +19,7 @@ void ctx_push(Node *c)
 Node *ctx_peek(void)
 {
     if (ctx_count <= 0)
-        perr("Invalid current context (none)");
+        perr("No current context");
 
     return ctx_stack[ctx_count-1];
 }
@@ -26,6 +27,10 @@ Node *ctx_peek(void)
 Node *ctx_pop(void)
 {
     Node *res = ctx_peek();
+
+    if (ctx_count <= 0)
+        perr("No current context");
+    
     ctx_count--;
     return res;
 }
@@ -33,7 +38,7 @@ Node *ctx_pop(void)
 char *ctx_currname(void)
 {
     char *tmp = NULL;
-    char *res = malloc(1);
+    char *res = smalloc(1);
     *res = 0;
 
     int i = ctx_count;
@@ -65,7 +70,7 @@ char *ctx_currname(void)
     size_t len = strlen(res);
     if (res[len - 1] == '_')
     {
-        res = realloc(res, len);
+        res = srealloc(res, len);
         res[len - 1] = 0;
     }
     

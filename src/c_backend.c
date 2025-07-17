@@ -22,7 +22,7 @@ static char *type2crep(Type *t)
 
     char *res;
     
-    switch (t->base)
+    switch (t->id)
     {
     case UNRESOLVED:
         res = m_strcat("unresolved", tmp);
@@ -125,7 +125,7 @@ static void bk_c_emit_function(Node *root)
 {
     struct FunDeclNode *f = root->as.fdecl;
     
-    char *ts = type2crep(&f->ret);
+    char *ts = type2crep(f->ret);
     fprintf(fout, "%s %s", ts, f->name);
     free(ts);
 
@@ -167,7 +167,7 @@ static void bk_c_emit_function(Node *root)
 static void bk_c_emit_vdecl(Node *root)
 {
     struct VarDeclNode *v = root->as.vdecl;
-    char *ts = type2crep(&v->type);
+    char *ts = type2crep(v->type);
     fprintf(fout, "%*s%s %s", (ctx_count - 1) * 4, "", ts, v->name);
     free(ts);
 

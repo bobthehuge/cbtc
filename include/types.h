@@ -2,45 +2,35 @@
 #define VTYPE_H
 
 #include "bth_htab.h"
+#include "ast.h"
 
-typedef enum
-{
-    UNRESOLVED,
-    VT_CHAR,
-    VT_INT,
-    VT_ANY,
-    VT_CUSTOM, // need research in a type table
-} VType;
+const char *base2str(Type *t);
+char *type2str(Type *t);
+Type *typeget(Node *n);
+int typecmp(Type *t1, Type *t2);
 
-typedef struct
-{
-    uint refc;
-    uint poly:1; // polymophic: scope is local
-    uint id:31;
-} Type;
+Type *empty_type(void);
+Type *self_type(void);
 
-struct ValueNode
-{
-    Type type;
-    union
-    {
-        int   vt_int;
-        char  vt_char;
-        char *vt_str;
-    } as;
-};
+TypeInfo *empty_typeinfo(void);
 
-// typedef struct
-// {
-//     const char *name;
-//     HashTable *types;
-//     HashTable *impls;
-// } TraitInfo;
+HashData *get_type(Type *t);
+TypeInfo *get_type_info(Type *t);
 
-typedef struct
-{
-    Type repr;
-    HashTable *traits;
-} TypeInfo;
+HashData *get_trait(const char *name);
+TraitInfo *get_trait_info(const char *name);
+
+char *impl2str(struct ImplDeclNode *im);
+
+void define_trait(const char *name, TraitInfo *tr);
+void reset_traits(void);
+Node *create_impl_node(const char *name);
+void impl_trait(Node *node);
+
+void define_type(const char *name, TypeInfo *ti);
+void reset_types(void);
+
+void define_static_traits(void);
+void define_static_types(void);
 
 #endif

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "../include/bth_alloc.h"
+#include "../include/types.h"
 #include "../include/utils.h"
 
 void *m_scalloc(size_t s)
@@ -12,14 +13,20 @@ void *m_scalloc(size_t s)
     return scalloc(1, s);
 }
 
+void *m_memdup(const void *src, size_t len)
+{
+    void *dst = smalloc(len);
+    memcpy(dst, src, len);
+
+    return dst;
+}
+
 char *m_strndup(const char *str, size_t n)
 {
     size_t len = strlen(str);
     len = len > n ? n : len;
 
-    char *res = malloc(len + 1);
-    memcpy(res, str, len);
-
+    char *res = m_memdup(str, len + 1);
     res[len] = 0;
 
     return res;
@@ -28,9 +35,7 @@ char *m_strndup(const char *str, size_t n)
 char *m_strdup(const char *str)
 {
     size_t len = strlen(str);
-    char *res = malloc(len + 1);
-
-    memcpy(res, str, len);
+    char *res = m_memdup(str, len + 1);
     res[len] = 0;
 
     return res;
@@ -41,7 +46,7 @@ char *m_strapp(char *dst, const char *src)
     size_t dlen = strlen(dst);
     size_t slen = strlen(src);
 
-    char *res = realloc(dst, dlen + slen + 1);
+    char *res = srealloc(dst, dlen + slen + 1);
     memcpy(res + dlen, src, slen);
     res[dlen + slen] = 0;
 
@@ -53,7 +58,7 @@ char *m_strcat(const char *s1, const char *s2)
     size_t len1 = strlen(s1);
     size_t len2 = strlen(s2);
 
-    char *res = malloc(len1 + len2 + 1);
+    char *res = smalloc(len1 + len2 + 1);
     memcpy(res, s1, len1);
     memcpy(res + len1, s2, len2);
     res[len1 + len2] = 0;
@@ -131,89 +136,53 @@ int is_valid_int(const char *s, long *res, int base)
         return 0;
 
     if (errno == ERANGE)
-        return -1;
+        return 1;
 
-    return 1;
+    return 2;
 }
 
-char *type2str(Type *t)
+
+char *varsig(struct VarDeclNode *vnode)
 {
-    char *res = malloc(t->refc + 1);
-    memset(res, '&', t->refc);
-    res[t->refc] = 0;
-    
-    switch (t->base)
-    {
-    case UNRESOLVED:
-        res = m_strapp(res, "unresolved");
-        break;
-    case VT_INT:
-        res = m_strapp(res, "int");
-        break;
-    case VT_CHAR:
-        res = m_strapp(res, "char");
-        break;
-    default:
-        UNREACHABLE();
-    }
+    char *res = smalloc(1);
+    *res = 0;
+
+    res = m_strapp(res, type2str(vnode->type));
+    res = m_strapp(res, " ");
+    res = m_strapp(res, vnode->name);
 
     return res;
 }
 
-Type *typeget(Node *_n)
+char *funcsig(struct FunDeclNode *fnode)
 {
-    Node *n = _n;
+    char *res = smalloc(1);
+    *res = 0;
 
-redo:
-    switch (n->kind)
+    res = m_strapp(res, type2str(fnode->ret));
+    res = m_strapp(res, " ");
+    res = m_strapp(res, fnode->name);
+    res = m_strapp(res, "(");
+
+    if (fnode->argc)
     {
-    case NK_EXPR_ADD: case NK_EXPR_MUL:
-        return &n->as.binop->type;
-    case NK_EXPR_DEREF: case NK_EXPR_REF:
-        return &n->as.unop->type;
-    case NK_EXPR_IDENT:
-        return &n->as.ident->type;
-    case NK_EXPR_LIT:
-        return &n->as.ident->type;
-    case NK_EXPR_FUNCALL:
-        return &n->as.fcall->type;
-    case NK_VAR_DECL:
-        return &n->as.vdecl->type;
-    case NK_FUN_DECL:
-        return &n->as.fdecl->ret;
-    case NK_EXPR_ASSIGN:
-        n = n->as.assign->dest;
-        goto redo;
-    default:
-        return NULL;
+        char *tmp = varsig(fnode->args[0]->as.vdecl);
+        res = m_strapp(res, tmp);
+        free(tmp);
+
+        for (size_t i = 1; i < fnode->argc; i++)
+        {
+            tmp = varsig(fnode->args[0]->as.vdecl);
+            res = m_strapp(res, ", ");
+            res = m_strapp(res, tmp);
+            free(tmp);
+        }
     }
+
+    res = m_strapp(res, ")");
+
+    return res;
 }
-
-// returns:
-// 0 if t1 == t2
-// 1 else
-// 
-int typecmp(Type *t1, Type *t2)
-{
-    if (!t1 || !t2)
-        perr("NULL type caught");
-
-    return t1->refc != t2->refc || t1->base != t2->base;
-}
-
-// char *typehkey(Type *ty)
-// {
-//     char *sh = malloc(sizeof(Type) + 1);
-
-//     char *src = (char *)ty;
-
-//     for (uint i = 0; i < sizeof(Type); i++)
-//         sh[i] = src[i] + 1;
-
-//     sh[sizeof(Type)] = 0;
-
-//     return sh;
-// }
 
 // get a valid cstr representation from delimited raw bytes
 char *gethashkey(const char *raw, size_t len)

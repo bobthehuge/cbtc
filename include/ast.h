@@ -1,14 +1,68 @@
 #ifndef AST_H
 #define AST_H
 
+#include "bth_htab.h"
 #include "token.h"
-#include "types.h"
+
+typedef enum
+{
+    UNRESOLVED,
+    VT_CHAR,
+    VT_INT,
+    VT_ANY,
+    VT_SELF,
+    VT_CUSTOM,
+} VType;
+
+typedef struct
+{
+    uint refc;
+    uint poly:1; // polymophic: scope is local
+    uint id:31;
+} Type;
+
+struct ValueNode
+{
+    Type *type;
+    union
+    {
+        int   vt_int;
+        char  vt_char;
+        char *vt_str;
+    } as;
+};
+
+typedef struct
+{
+    HashTable *types;
+    HashTable *funcs;
+} TraitInfo;
+
+typedef struct
+{
+    Type repr;
+    HashTable *traits;
+} TypeInfo;
+
+typedef enum
+{
+    TCMP_RES = -4, // cmp with UNRESOLVED or undefined
+    TCMP_EXC = -3, // total exclusion
+    TCMP_PIN = -2, // partial inclusion
+    TCMP_NEQ = -1, // strict inequality
+    TCMP_LCA =  0, // can cast target into sample
+    TCMP_RCA =  1, // can cast sample into target
+    TCMP_INC =  2, // total inclusion
+    TCMP_PEQ =  3, // polymorphic equality
+    TCMP_EQS =  4, // strict equality
+} TypeCmpError;
 
 typedef enum
 {
     NK_VAR_DECL,
     NK_FUN_DECL,
     NK_MOD_DECL,
+    NK_IMPL_DECL,
     NK_EXPR_LIT,
     NK_EXPR_IDENT,
     NK_EXPR_ASSIGN,
@@ -22,7 +76,7 @@ typedef enum
 
 struct VarDeclNode
 {
-    Type type;
+    Type *type;
     const char *name;
     struct Node *init;
 };
@@ -35,8 +89,9 @@ struct ModDeclNode
 
 struct FunDeclNode
 {
-    Type ret;
     uint argc;
+    Type *ret;
+    HashTable *types;
     const char *name;
     struct Node **args;
     struct Node **body;
@@ -44,14 +99,14 @@ struct FunDeclNode
 
 struct IdentNode
 {
-    Type type;
+    Type *type;
     char *name;
 };
 
 struct FunCallNode
 {
-    Type type;
     uint argc;
+    Type *type;
     const char *name;
     struct Node **args;
 };
@@ -64,53 +119,24 @@ struct AssignNode
 
 struct BinopNode
 {
-    Type type;
+    Type *type;
     struct Node *lhs;
     struct Node *rhs;
 };
 
 struct UnopNode
 {
-    Type type;
+    Type *type;
     struct Node *value;
 };
 
-struct TraitNode
-{
-    HashTable *types;
-    HashTable *funs;
-};
-
-struct ImplNode
+struct ImplDeclNode
 {
     const char *trait;
     HashTable *types;
     // struct FunDeclNode **funs;
-    HashTable *funs;
+    HashTable *funcs;
 };
-
-// impl Add<Int, Char, Int>
-// begin
-//     int add(int lhs, char rhs)
-//         return lhs + rhs;
-//     end
-// end
-//
-// =>
-// 
-// TraitNode *tr = get_trait("Add");
-// ImplNode *im = new ImplNode;
-//
-// im->trait = "Add";
-//
-// for idx, dt in decltypes.list()
-//     can_impl(get_traits(dt), tr.types.iget(idx));
-//     im.types = get_traits(dt).clone();
-// end
-//
-// im->funs = tr->funs.clone();
-//
-// tr.impls.add(hashkey(decltypes), im);
 
 typedef struct Node
 {
@@ -132,6 +158,7 @@ typedef struct Node
         struct BinopNode      *binop;
         struct UnopNode       *unop;
         struct FunCallNode    *fcall;
+        struct ImplDeclNode   *impl;
     } as;
 } Node;
 

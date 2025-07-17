@@ -18,7 +18,12 @@ Node *new_node(NodeKind k, Token *semholder)
 
     root->row = 0;
     root->col = 0;
-    root->afile = m_strdup(g_lexer.filename);
+
+    if (semholder)
+        root->afile = m_strdup(g_lexer.filename);
+    else
+        root->afile = NULL;
+
     root->kind = k;
     
     if (semholder)
@@ -66,6 +71,10 @@ Node *new_node(NodeKind k, Token *semholder)
     case NK_VAR_DECL:
         dst = &root->as.vdecl;
         s = sizeof(struct VarDeclNode);
+        break;
+    case NK_IMPL_DECL:
+        dst = &root->as.impl;
+        s = sizeof(struct ImplDeclNode);
         break;
     case NK_RETURN:
         dst = &root->as.ret;
@@ -129,7 +138,7 @@ long get_token_int(Token *tok)
 
     if (!code)
         perr("Invalid int representation %s", src);
-    if (code < 0)
+    if (code < 2)
         warnx("%zu:%zu: long range error", tok->row, tok->col);
 
     free(src);
@@ -151,24 +160,27 @@ char get_token_char(Token *tok)
     return *(tok->begin + 1);
 }
 
-Type parse_type(void)
+Type *parse_type(void)
 {
-    Type res;
-    res.refc = 0;
+    Type *res = empty_type();
 
 redo:
     switch (cur.idx)
     {
     case TK_UPPERSAND:
-        res.refc++;
+        res->refc++;
         cur = next_token();
         goto redo;
     case TK_INT: case TK_INT_CST:
-        res.base = VT_INT;
+        res->id = VT_INT;
+        cur = next_token();
+        return res;
+    case TK_CHAR: case TK_CHAR_CST:
+        res->id = VT_CHAR;
         cur = next_token();
         return res;
     default:
-        res.base = UNRESOLVED;
+        res->id = UNRESOLVED;
         cur = next_token();
         return res;
     }
@@ -179,8 +191,7 @@ Node *parse_ident()
     Node *node = new_node(NK_EXPR_IDENT, &cur);
     struct IdentNode *root = node->as.ident;
 
-    root->type.refc = 0;
-    root->type.base = UNRESOLVED;
+    root->type = empty_type();
     root->name = get_token_content(&cur);
 
     cur = next_token();
@@ -193,21 +204,21 @@ Node *parse_lit()
     Node *node = new_node(NK_EXPR_LIT, &cur);
     struct ValueNode *root = node->as.lit;
 
+    root->type = empty_type();
+    
     switch (cur.idx)
     {
     case TK_INT_CST:
-        root->type.refc = 0;
-        root->type.base = VT_INT;
+        root->type->id = VT_INT;
         root->as.vt_int = get_token_int(&cur);
         break;
     case TK_STR_CST:
-        root->type.refc = 1;
-        root->type.base = VT_CHAR;
+        root->type->refc = 1;
+        root->type->id = VT_CHAR;
         root->as.vt_str = get_token_str(&cur);
         break;
     case TK_CHAR_CST:
-        root->type.refc = 0;
-        root->type.base = VT_CHAR;
+        root->type->id = VT_CHAR;
         root->as.vt_char = get_token_char(&cur);
         break;
     default:
@@ -225,9 +236,8 @@ Node *parse_funcall(Node *n)
 {
     Node *node = new_node(NK_EXPR_FUNCALL, &cur);
     struct FunCallNode *root = node->as.fcall;
-       
-    root->type.base = UNRESOLVED;
-    root->type.refc = 0;
+
+    root->type = empty_type();
     root->args = smalloc(0);
     root->argc = 0;
 
@@ -318,8 +328,7 @@ Node *parse_sum(Node *n)
     cur = next_token(); // eat symbol
 
     Node *sum = new_node(NK_EXPR_ADD, &cur);
-    sum->as.binop->type.refc = 0;
-    sum->as.binop->type.base = UNRESOLVED;
+    sum->as.binop->type = empty_type();
     sum->as.binop->lhs = n;
     sum->as.binop->rhs = parse_expr();
 
@@ -331,8 +340,7 @@ Node *parse_product(Node *n)
     cur = next_token(); // eat symbol
 
     Node *mul = new_node(NK_EXPR_MUL, &cur);
-    mul->as.binop->type.refc = 0;
-    mul->as.binop->type.base = UNRESOLVED;
+    mul->as.binop->type = empty_type();
     mul->as.binop->lhs = n;
     mul->as.binop->rhs = parse_unary();
 
@@ -380,7 +388,7 @@ redo:
     return res;
 }
 
-Node *parse_var_decl(Type bt, Token *id)
+Node *parse_var_decl(Type *bt, Token *id)
 {
     Node *node = new_node(NK_VAR_DECL, id);
     struct VarDeclNode *root = node->as.vdecl;
@@ -403,9 +411,9 @@ Node *parse_var_decl(Type bt, Token *id)
     return node;
 }
 
-Node *parse_fun_decl(Type bt, Token *id);
+Node *parse_fun_decl(Type *bt, Token *id);
 
-Node *parse_decl(Type bt)
+Node *parse_decl(Type *bt)
 {
     Token id = cur;
     cur = next_token();
@@ -466,7 +474,7 @@ Node **parse_fun_body(void)
     return nodes;
 }
 
-Node *parse_fun_decl(Type bt, Token *id)
+Node *parse_fun_decl(Type *bt, Token *id)
 {
     Node *node = new_node(NK_FUN_DECL, id);
     struct FunDeclNode *root = node->as.fdecl;
@@ -510,7 +518,7 @@ Node *parse_fun_decl(Type bt, Token *id)
 
 Node **parse_mod_body(Node *node)
 {
-    Node **nodes = malloc(0);
+    Node **nodes = smalloc(0);
     Node *nnode = NULL;
     size_t count = 0;
 
@@ -522,14 +530,23 @@ Node **parse_mod_body(Node *node)
     {
         cur = next_token();
 
+        Type *type = NULL;
+
         if ((isfile && cur.kind == LK_END) || (!isfile) && cur.idx == TK_END)
             break;
         
         switch (cur.idx)
         {
         case TK_INT: case TK_UPPERSAND:
-            nnode = parse_decl(parse_type());
+        case TK_IDENTIFIER:
+            if (!strcmp(cur.begin, "self"))
+                type = self_type();
+            else
+                type = parse_type();
+
+            nnode = parse_decl(type);
             break;
+
         default:
             err_tok_unexp(&cur);
         }
@@ -548,6 +565,9 @@ Node **parse_mod_body(Node *node)
 
 Node *parse_file(const char *rpath)
 {
+    reset_traits();
+    reset_types();
+
     symtable_reset(16);
     set_lexer(rpath);
 

@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#include "../include/bth_alloc.h"
 #include "../include/context.h"
 
 #define derr(fmt, ...) \
@@ -23,14 +24,14 @@ void ast_desug_idnode(Node *root)
     char *key = m_strcat(ctx_currname(), "_");
     key = m_strapp(key, i->name);
 
-    if (i->type.base == UNRESOLVED)
+    if (i->type->id == UNRESOLVED)
     {
         HashData *hp = get_symbol(key);
 
         if (!hp)
             derr("Unknown symbol '%s' (%s)", i->name, key);
         
-        i->type = *typeget(hp->value);
+        i->type = typeget(hp->value);
     }
 
     i->name = key;
@@ -53,27 +54,31 @@ void ast_desug_binop(Node *root)
     char *str_lt = type2str(lt);
     char *str_rt = type2str(rt);
     
-    b->type = *lt;
+    b->type = lt;
 
     switch (root->kind)
     {
     case NK_EXPR_ADD:
-        if (lt->refc > 0 && (rt->refc > 0 || rt->base != VT_INT))
-            derr("Can't add '%s' with '%s'", str_lt, str_rt);
-        else if (rt->refc > 0)
-        {
-            if (lt->refc > 0 || lt->base != VT_INT)
-                derr("Can't add '%s' with '%s'", str_lt, str_rt);
+        // if (lt->refc > 0 && (rt->refc > 0 || rt->id != VT_INT))
+        //     derr("Can't add '%s' with '%s'", str_lt, str_rt);
+        // else if (rt->refc > 0)
+        // {
+        //     if (lt->refc > 0 || lt->id != VT_INT)
+        //         derr("Can't add '%s' with '%s'", str_lt, str_rt);
 
-            b->type = *rt;
+        //     b->type = rt;
+        // }
+        // else if (lt->id != rt->id)
+        //     derr("Can't add '%s' with '%s'", str_lt, str_rt);
+        {
+            void **types = smalloc(2 * sizeof(Type *));
+            char *tmp = impl2str()
         }
-        else if (lt->base != rt->base)
-            derr("Can't add '%s' with '%s'", str_lt, str_rt);
 
         break;
     case NK_EXPR_MUL:
-        if (lt->refc || rt->refc || lt->base != VT_INT || rt->base != VT_INT
-            || lt->base != rt->base)
+        if (lt->refc || rt->refc || lt->id != VT_INT || rt->id != VT_INT
+            || lt->id != rt->id)
             derr("Can't mul '%s' with '%s'", str_lt, str_rt);
         break;
     default:
@@ -88,21 +93,21 @@ void ast_desug_unop(Node *root)
     {
     case NK_EXPR_DEREF:
         ast_desug_node(u->value);
-        u->type = *typeget(u->value);
+        u->type = typeget(u->value);
         
-        if (u->type.refc == 0)
-            derr("'%s' is not a pointer", type2str(&u->type));
+        if (u->type->refc == 0)
+            derr("'%s' is not a pointer", type2str(u->type));
 
-        u->type.refc--;
+        u->type->refc--;
         break;
     case NK_EXPR_REF:
         ast_desug_node(u->value);
-        u->type = *typeget(u->value);
+        u->type = typeget(u->value);
 
-        if (u->type.base == VT_INT && u->value->kind == NK_EXPR_LIT)
-            derr("Can't ref type '%s'", type2str(&u->type));
+        if (u->type->id == VT_INT && u->value->kind == NK_EXPR_LIT)
+            derr("Can't ref type '%s'", type2str(u->type));
 
-        u->type.refc++;
+        u->type->refc++;
         break;
     default:
         UNREACHABLE();
@@ -119,7 +124,7 @@ void ast_desug_assign(Node *root)
     Type *d = typeget(a->dest);
     Type *v = typeget(a->value);
 
-    assert(d->base != UNRESOLVED && v->base != UNRESOLVED);
+    assert(d->id != UNRESOLVED && v->id != UNRESOLVED);
     
     if (typecmp(d, v))
         derr("Can't init '%s' from '%s'", type2str(d), type2str(v));
@@ -129,7 +134,7 @@ void ast_desug_vnode(Node *root)
 {
     struct VarDeclNode *v = root->as.vdecl;
 
-    assert(v->type.base != UNRESOLVED);
+    assert(v->type->id != UNRESOLVED);
 
     char *key = m_strcat(ctx_currname(), "_");
     key = m_strapp(key, v->name);
@@ -141,8 +146,8 @@ void ast_desug_vnode(Node *root)
         ast_desug_node(v->init);
         Type *ti = typeget(v->init);
 
-        if (typecmp(ti, &v->type))
-            derr("Can't init '%s' from '%s'", type2str(ti), type2str(&v->type));
+        if (typecmp(ti, v->type) != TCMP_EQS)
+            derr("Can't init '%s' from '%s'", type2str(ti), type2str(v->type));
     }
 }
 
@@ -155,12 +160,12 @@ void ast_desug_retnode(Node *root)
 
     ast_desug_node(root->as.ret);
 
-    Type funret = last->as.fdecl->ret;
+    Type *funret = last->as.fdecl->ret;
     Type *ret = typeget(root->as.ret);
 
-    if (typecmp(&funret, ret))
+    if (typecmp(funret, ret) < TCMP_INC)
     {
-        const char *str1 = type2str(&funret);
+        const char *str1 = type2str(funret);
         const char *str2 = type2str(ret);
         derr("Can't return '%s' from '%s'", str1, str2);
     }

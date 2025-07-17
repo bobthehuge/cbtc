@@ -118,6 +118,7 @@ typedef struct bth_hdata HashData;
 #endif
 
 struct bth_htab *bth_htab_new(size_t cap, size_t nd, size_t nb);
+struct bth_htab *bth_htab_clone(struct bth_htab *org);
 
 size_t bth_htab_add(struct bth_htab *ht, const char *k, void *val);
 void *bth_htab_delete(struct bth_htab *ht, const char *key);
@@ -183,13 +184,16 @@ struct bth_htab *bth_htab_new(size_t cap, size_t nd, size_t nb)
     struct bth_htab *ht = BTH_HTAB_ALLOC(sizeof(struct bth_htab));
 
     ht->cap = cap;
-    ht->size = nd;
     ht->nd = nd;
+    ht->nb = nb;
 
     if (!nd)
         nd++;
 
-    ht->nb = nb;
+    if (!nb)
+        nb++;
+
+    ht->size = nd;
     ht->map = BTH_HTAB_ALLOC(cap * sizeof(struct bth_hbuck));
 
     for (size_t i = 0; i < cap; i++)
@@ -238,6 +242,32 @@ size_t bth_htab_add(struct bth_htab *ht, const char *k, void *val)
 
     errno = ENOENT;
     return idx;
+}
+
+struct bth_htab *bth_htab_clone(struct bth_htab *org)
+{
+    struct bth_htab *ht = BTH_HTAB_ALLOC(sizeof(struct bth_htab));
+
+    ht->cap = org->cap;
+    ht->size = org->size;
+    ht->nd = org->nd;
+    ht->nb = org->nb;
+
+    ht->map = BTH_HTAB_ALLOC(org->cap * sizeof(struct bth_hbuck));
+
+    for (size_t i = 0; i < org->cap; i++)
+    {
+        ht->map[i].idx = BTH_HTAB_ALLOC(org->nb * sizeof(size_t));
+        ht->map[i].cap = org->map[i].cap;
+        BTH_HTAB_MEMCPY(ht->map[i].idx, org->map[i].idx,
+            org->map[i].cap * sizeof(size_t));
+    }
+
+    ht->data = BTH_HTAB_ALLOC(org->size * sizeof(struct bth_hdata *));
+    BTH_HTAB_MEMCPY(ht->data, org->data,
+        org->size * sizeof(struct bth_hdata *));
+
+    return ht;
 }
 
 void *bth_htab_delete(struct bth_htab *ht, const char *key)
@@ -309,11 +339,11 @@ void bth_htab_resize(struct bth_htab *ht, size_t s)
 void bth_htab_reput(struct bth_htab *ht, size_t idx)
 {
     struct bth_hdata *hd = ht->data[idx];
-
     struct bth_hbuck *hb = ht->map + (hd->hash % ht->cap);
+
     size_t *last = hb->idx + hb->cap - 1;
 
-    if (*last) // resize bucket idx
+    if (hb->cap == 0 || *last) // resize bucket idx
     {
         size_t inc = ht->nb ? ht->nb : hb->cap;
         
