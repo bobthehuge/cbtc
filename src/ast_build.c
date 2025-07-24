@@ -404,7 +404,7 @@ Node *parse_var_decl(Type *bt, Token *id)
 
     char *name = ctx_currname();
     if (*name)
-        name = m_strapp(name, "_");
+        name = m_strapp(name, "::");
     name = m_strapp(name, root->name);
     add_symbol(name, node);
 

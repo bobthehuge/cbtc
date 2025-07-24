@@ -53,6 +53,33 @@ char *m_strapp(char *dst, const char *src)
     return res;
 }
 
+char *__m_strapp_n(char *dst, size_t len, const char *strs[len])
+{
+    size_t *lens = smalloc(sizeof(size_t) * (len + 1));
+
+    size_t total = strlen(dst);
+    lens[0] = total;
+
+    for (size_t i = 0; i < len; i++)
+    {
+        lens[i + 1] = strlen(strs[i]);
+        total += lens[i + 1];
+    }
+
+    dst = srealloc(dst, total + 1);
+    char *start = dst + lens[0];
+
+    for (size_t i = 0; i < len; i++)
+    {
+        memcpy(start, strs[i], lens[i + 1]);
+        start += lens[i + 1];
+    }
+
+    free(lens);
+    dst[total] = 0;
+    return dst;
+}
+
 char *m_strcat(const char *s1, const char *s2)
 {
     size_t len1 = strlen(s1);
@@ -64,6 +91,100 @@ char *m_strcat(const char *s1, const char *s2)
     res[len1 + len2] = 0;
 
     return res;
+}
+
+char *m_strpre(char *dst, const char *src)
+{
+    size_t dlen = strlen(dst);
+    size_t slen = strlen(src);
+
+    char *res = srealloc(dst, dlen + slen + 1);
+
+    memmove(res + slen, res, dlen);
+    memcpy(res, src, slen);
+
+    res[dlen + slen] = 0;
+
+    return res;
+}
+
+char *__m_strchg(const char *src, const char *tok, const char *val, bool all)
+{
+    size_t slen = strlen(src);
+    size_t tlen = strlen(tok);
+    size_t vlen = strlen(val);
+
+    size_t rlen = slen;
+    char *res = m_strdup(src);
+
+    size_t diff = 0;
+    size_t off = 0;
+
+    char *at = res;
+
+redo:
+    at = strstr(at, tok);
+
+    if (!at || at == res)
+        return res;
+
+    if (tlen == vlen)
+    {
+        memcpy(at, val, vlen);
+        at += vlen;
+
+        if (!all)
+            return res;
+
+        goto redo;
+    }
+
+    off = at - res;
+    diff = vlen - tlen;
+
+    if (tlen < vlen)
+    {
+        res = srealloc(res, rlen + diff);
+        at = res + off;
+
+        memmove(at + vlen, at + tlen, rlen - off - tlen + 1);
+        memcpy(at, val, vlen);
+        rlen += diff;
+
+        at += vlen;
+
+        if (!all)
+            return res;
+
+        goto redo;
+    }
+
+    diff = tlen - vlen;
+    at = res + off;
+
+    memmove(at + vlen, at + tlen, rlen - off - tlen + 1);
+    memcpy(at, val, vlen);
+
+    res = srealloc(res, rlen - diff);
+    rlen -= diff;
+
+    at += vlen;
+
+    if (!all)
+        return res;
+
+    goto redo;
+}
+
+void __m_strrep(char **dst, const char *tok, const char *val, bool all)
+{
+    char *res = __m_strchg(*dst, tok, val, all);
+
+    size_t len = strlen(res);
+    *dst = srealloc(*dst, len + 1);
+
+    memcpy(*dst, res, len + 1);
+    free(res);
 }
 
 char *stresc(const char *str)

@@ -94,6 +94,24 @@ int main(int argc, char **argv)
 
     Node *ast_file1 = parse_file(fin_path);
 
+    // char *t = m_strdup("foo");
+    // t = m_strapp_n(t, "bar", "baz");
+    // printf("%s : %zu\n", t, strlen(t));
+
+    // char *t1 = m_strchg(t, "bar", "ewe");
+    // printf("%s : %zu\n", t1, strlen(t1));
+
+    // char *t2 = m_strchg(t, "bar", "bite");
+    // printf("%s : %zu\n", t2, strlen(t2));
+
+    // char *t3 = m_strchg(t2, "bite", "bar");
+    // printf("%s : %zu\n", t3, strlen(t3));
+    
+    // free(t);
+    // free(t1);
+    // free(t2);
+    // free(t3);
+
     if (dump_ast)
     {
         ast_dump(ast_file1);

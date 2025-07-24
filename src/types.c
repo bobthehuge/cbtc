@@ -3,8 +3,10 @@
 #include "../include/types.h"
 #include "../include/utils.h"
 
-static HashTable *trait_table = NULL;
-static HashTable *type_table = NULL;
+#include <stdio.h>
+
+HashTable *trait_table = NULL;
+HashTable *type_table = NULL;
 
 Type *empty_type(void)
 {
@@ -82,6 +84,19 @@ TypeInfo *get_type_info(Type *t)
     return hd->value;
 }
 
+TypeInfo *get_id_type_info(uint id)
+{
+    if (!id || id > type_table->size)
+        perr("Invalid type id %u", id);
+    
+    HashData *hd = type_table->data[id];
+
+    if (!hd)
+        perr("Invalid type id %u", id);
+
+    return hd->value;
+}
+
 HashData *get_trait(const char *name)
 {
     HashData *hd = bth_htab_get(trait_table, name);
@@ -153,19 +168,10 @@ redo:
     }
 }
 
-// see ast.h for error values
-// 
-TypeCmpError typecmp(Type *target, Type *sample)
+TypeCmpError typeicmp(TypeInfo *ti, TypeInfo *si)
 {
-    if (!target || !sample ||
-        target->id == UNRESOLVED || sample->id == UNRESOLVED)
-        return TCMP_RES;
-    
-    TypeInfo *ti = get_type_info(target);
-    TypeInfo *si = get_type_info(sample);
-
     // can sample implement target
-    if (target->poly || sample->poly)
+    if (ti->repr.poly || si->repr.poly)
     {
         uint incomp = 0;
 
@@ -175,7 +181,7 @@ TypeCmpError typecmp(Type *target, Type *sample)
             HashData *td = ti->traits->data[i];
 
             if (!td)
-                perr("Malformed trait table for id '%zu'", target->id);
+                perr("Malformed trait table for id '%zu'", ti->repr.id);
 
             TraitInfo *sd = get_trait_info(td->key);
         
@@ -199,22 +205,22 @@ TypeCmpError typecmp(Type *target, Type *sample)
         return TCMP_INC;
     }
 
-    if (target->refc != sample->refc)
+    if (ti->repr.refc != si->repr.refc)
         return TCMP_NEQ;
 
-    if (target->id == sample->id)
+    if (ti->repr.id == si->repr.id)
         return TCMP_EQS;
 
     // avoid expensive lookup for standard types
-    if (target->id < VT_CUSTOM && target->id < VT_CUSTOM)
+    if (ti->repr.id < VT_CUSTOM && ti->repr.id < VT_CUSTOM)
     {
-        switch (target->id)
+        switch (ti->repr.id)
         {
         case VT_CHAR:
-            if (sample->id == VT_INT)
+            if (si->repr.id == VT_INT)
                 return TCMP_RCA;
         case VT_INT:
-            if (sample->id == VT_CHAR)
+            if (si->repr.id == VT_CHAR)
                 return TCMP_LCA;
         case VT_ANY:
             return TCMP_LCA;
@@ -227,6 +233,20 @@ TypeCmpError typecmp(Type *target, Type *sample)
     TODO();
 
     return TCMP_NEQ;
+}
+
+// see ast.h for error values
+// 
+TypeCmpError typecmp(Type *target, Type *sample)
+{
+    if (!target || !sample ||
+        target->id == UNRESOLVED || sample->id == UNRESOLVED)
+        return TCMP_RES;
+    
+    TypeInfo *ti = get_type_info(target);
+    TypeInfo *si = get_type_info(sample);
+
+    return typeicmp(ti, si);
 }
 
 // checks if im's types can impl tr's types
@@ -315,16 +335,18 @@ char *impl2str(struct ImplDeclNode *im)
         ti = im->types->data[2]->value;
         t = type2str(&ti->repr);
 
-        res = m_strapp(res, "<");
-        res = m_strapp(res, t);
+        // res = m_strapp(res, "<");
+        // res = m_strapp(res, t);
+        res = m_strapp_n(res, "<", t);
 
         for (uint i = 3; i < im->types->size; i++)
         {
             free(t);
             ti = im->types->data[i]->value;
             t = type2str(&ti->repr);
-            res = m_strapp(res, ", ");
-            res = m_strapp(res, t);
+            // res = m_strapp(res, ", ");
+            // res = m_strapp(res, t);
+            res = m_strapp_n(res, ", ", t);
         }
 
         free(t);
@@ -335,7 +357,7 @@ char *impl2str(struct ImplDeclNode *im)
 
     ti = im->types->data[1]->value;
     t = type2str(&ti->repr);
-    res = m_strapp(res, t);
+    res = m_strapp_n(res, " for ", t);
     free(t);
 
     return res;
@@ -353,6 +375,96 @@ Node *create_impl_node(const char *name)
     im->types = bth_htab_clone(tr->types);
 
     return res;
+}
+
+// <
+// ..,
+// Any, <- reccall
+// Any => VT_CHAR, VT_INT, ...
+// >
+//
+// TODO: try to find a way to "precompute" all type's str into a matrix and
+// then expand for every combinaison
+// 
+void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
+{
+    struct ImplDeclNode *im = node->as.impl;
+
+    if (start >= im->types->size)
+        return;
+
+    HashData *chd = im->types->data[start];
+    TypeInfo *cti = chd->value;
+    
+    if (start == im->types->size - 1)
+    {
+        if (cti->repr.id != VT_ANY)
+        {
+            char *cur = type2str(&cti->repr);
+            // cur = m_strpre(cur, ", ");
+            cur = m_strpre(cur, ckey);
+
+            cur = m_strapp(cur, ">");
+
+            bth_htab_add(target->traits, cur, node);
+            // printf("add impl %s%s for %s\n", im->trait, cur,
+            //         type2str(&target->repr));
+            free(cur);
+
+            return;
+        }
+
+        for (uint i = 1; i < type_table->size; i++)
+        {
+            HashData *hd = type_table->data[i];
+            TypeInfo *ti = hd->value;
+
+            if (typeicmp(cti, ti) < TCMP_INC)
+                continue;
+
+            char *cur = type2str(&cti->repr);
+            // cur = m_strpre(cur, ", ");
+            cur = m_strpre(cur, ckey);
+
+            cur = m_strapp(cur, ">");
+
+            bth_htab_add(target->traits, cur, node);
+            // printf("add impl %s%s for %s\n", im->trait, cur,
+            //         type2str(&target->repr));
+            // TODO: add poly expansion for function
+            free(cur);
+        }
+
+        return;
+    }
+
+    if (cti->repr.id != VT_ANY)
+    {
+        char *cur = type2str(&cti->repr);
+        cur = m_strpre(cur, ckey);
+        cur = m_strapp(cur, ", ");
+
+        poly_expand(node, target, cur, start + 1);
+        free(cur);
+
+        return;
+    }
+
+    for (uint i = 1; i < type_table->size; i++)
+    {
+        HashData *hd = type_table->data[i];
+        TypeInfo *ti = hd->value;
+
+        if (typeicmp(cti, ti) < TCMP_INC)
+            continue;
+
+        char *cur = type2str(&cti->repr);
+        cur = m_strpre(cur, ckey);
+        cur = m_strapp(cur, ", ");
+
+        poly_expand(node, target, cur, start + 1);
+        free(cur);
+    }
 }
 
 // 1st type should always be the target type
@@ -387,11 +499,12 @@ void impl_trait(Node *node)
     // implement funcs check
     // TODO();
 
-    for (uint i = 0; i < im->funcs->size; i++)
+    for (uint i = 1; i < im->funcs->size; i++)
     {
         HashData *hd = im->funcs->data[i];
-        struct FunDeclNode *tif = hd->value;
-        struct FunDeclNode *trf = bth_htab_vget(tr->funcs, tif->name);
+        struct FunDeclNode *tif = ((Node *)hd->value)->as.fdecl;
+        struct FunDeclNode *trf =
+            ((Node *)bth_htab_vget(tr->funcs, tif->name))->as.fdecl;
 
         if (!trf)
             perr("No function named %s in %s definition", tif->name, im->trait);
@@ -420,17 +533,25 @@ void impl_trait(Node *node)
     }
 
     TypeInfo *target = im->types->data[1]->value;
-    char *key = impl2str(im);
+
+    char *key = m_strdup(im->trait);
+    key = m_strapp(key, "<");
 
     // add polymorphic expansion
     // => replace polymorphics by all possible matching types
     //
     // maybe call this function only when desugaring to avoid missing types
     // 
-    TODO();
-    
-    bth_htab_add(target->traits, key, im);
+
+    poly_expand(node, target, key, 2);
     free(key);
+
+    (void)ctx_pop();
+    
+    // TODO();
+
+    // bth_htab_add(target->traits, im->trait, im);
+    // free(key);
 }
 
 void define_trait(const char *name, TraitInfo *tr)

@@ -45,7 +45,9 @@ static void bk_c_emit_node(Node *node);
 
 static void bk_c_emit_ident(struct IdentNode *i)
 {
-    fprintf(fout, "%s", i->name);
+    char *name = m_strchg(i->name, "::", "_");
+    fprintf(fout, "%s", name);
+    free(name);
 }
 
 static void bk_c_emit_literal(struct ValueNode *lit)
@@ -106,7 +108,15 @@ static void bk_c_emit_assign(struct AssignNode *a)
 static void bk_c_emit_funcall(Node *root)
 {
     struct FunCallNode *fc = root->as.fcall;
-    fprintf(fout, "%s(", fc->name);
+
+    char *name = m_strchg_all(fc->name, "::", "_");
+
+    m_strrep_all(&name, "<", "_");
+    m_strrep_all(&name, ">", "_");
+    m_strrep_all(&name, ", ", "_");
+
+    fprintf(fout, "%s(", name);
+    free(name);
 
     Node **nodes = fc->args;
 
@@ -168,7 +178,9 @@ static void bk_c_emit_vdecl(Node *root)
 {
     struct VarDeclNode *v = root->as.vdecl;
     char *ts = type2crep(v->type);
-    fprintf(fout, "%*s%s %s", (ctx_count - 1) * 4, "", ts, v->name);
+    char *name = m_strchg_all(v->name, "::", "_");
+    fprintf(fout, "%*s%s %s", (ctx_count - 1) * 4, "", ts, name);
+    free(name);
     free(ts);
 
     if (v->init)

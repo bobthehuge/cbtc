@@ -4,6 +4,9 @@
 #include "bth_htab.h"
 #include "ast.h"
 
+extern HashTable *trait_table;
+extern HashTable *type_table;
+
 const char *base2str(Type *t);
 char *type2str(Type *t);
 Type *typeget(Node *n);
@@ -16,6 +19,7 @@ TypeInfo *empty_typeinfo(void);
 
 HashData *get_type(Type *t);
 TypeInfo *get_type_info(Type *t);
+TypeInfo *get_id_type_info(uint id);
 
 HashData *get_trait(const char *name);
 TraitInfo *get_trait_info(const char *name);

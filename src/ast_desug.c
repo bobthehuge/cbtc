@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <stdarg.h>
 
 #include "../include/bth_alloc.h"
 #include "../include/context.h"
@@ -21,8 +20,8 @@ void ast_desug_idnode(Node *root)
 {
     struct IdentNode *i = root->as.ident;
 
-    char *key = m_strcat(ctx_currname(), "_");
-    key = m_strapp(key, i->name);
+    char *key = ctx_currname();
+    key = m_strapp_n(key, "::", i->name);
 
     if (i->type->id == UNRESOLVED)
     {
@@ -39,40 +38,77 @@ void ast_desug_idnode(Node *root)
 
 void ast_desug_binop(Node *root)
 {
-    struct BinopNode *b = root->as.binop;
-    ast_desug_node(b->lhs);
-    ast_desug_node(b->rhs);
+    Node *lhs = root->as.binop->lhs;
+    Node *rhs = root->as.binop->rhs;
+    uint kind = root->kind;
+    
+    free(root->as.binop);
+    root->kind = NK_EXPR_FUNCALL;
+    root->as.fcall = smalloc(sizeof(struct FunCallNode));
 
-    Type *lt = typeget(b->lhs);
-    Type *rt = typeget(b->rhs);
+    struct FunCallNode *f = root->as.fcall;
+
+    f->argc = 2;
+    f->args = smalloc(3 * sizeof(Node *));
+    f->args[2] = NULL;
+
+    ast_desug_node(lhs);
+    ast_desug_node(rhs);
+
+    Type *lt = typeget(lhs);
+    Type *rt = typeget(rhs);
 
     if (!lt)
-        derr("Invalid binary operation involving kind %zu", b->lhs->kind);
+        derr("Invalid binary operation involving kind %zu", lhs->kind);
     if (!rt)
-        derr("Invalid binary operation involving kind %zu", b->rhs->kind);
+        derr("Invalid binary operation involving kind %zu", rhs->kind);
 
     char *str_lt = type2str(lt);
     char *str_rt = type2str(rt);
-    
-    b->type = lt;
 
-    switch (root->kind)
+    TypeInfo *lti = get_type_info(lt);
+    TypeInfo *rti = get_type_info(rt);
+
+    switch (kind)
     {
     case NK_EXPR_ADD:
-        // if (lt->refc > 0 && (rt->refc > 0 || rt->id != VT_INT))
-        //     derr("Can't add '%s' with '%s'", str_lt, str_rt);
-        // else if (rt->refc > 0)
-        // {
-        //     if (lt->refc > 0 || lt->id != VT_INT)
-        //         derr("Can't add '%s' with '%s'", str_lt, str_rt);
-
-        //     b->type = rt;
-        // }
-        // else if (lt->id != rt->id)
-        //     derr("Can't add '%s' with '%s'", str_lt, str_rt);
         {
-            void **types = smalloc(2 * sizeof(Type *));
-            char *tmp = impl2str()
+            // char *key = m_strcat("Add<", str_rt);
+            // key = m_strapp(key, ", ");
+            // key = m_strapp(key, str_lt);
+            // key = m_strapp(key, ">");
+            char *key = m_strdup("Add<");
+            key = m_strapp_n(key, str_rt, ", ", str_lt, ">");
+
+            Node *got = bth_htab_vget(lti->traits, key);
+            f->name = m_strapp(key, "::add");
+
+            if (got)
+            {
+                Node *ref = got->as.impl->funcs->data[1]->value;
+                f->type = ref->as.fdecl->ret;
+                f->args[0] = lhs;
+                f->args[1] = rhs;
+                return;
+            }
+
+            // key = m_strcat("Add<", str_lt);
+            // key = m_strapp(key, ", ");
+            // key = m_strapp(key, str_rt);
+            // key = m_strapp(key, ">");
+            key = m_strdup("Add<");
+            key = m_strapp_n(key, str_lt, ", ", str_rt, ">");
+
+            got = bth_htab_vget(rti->traits, key);
+            f->name = m_strapp(key, "::add");
+
+            if (!got)
+                perr("Can't add %s with %s", str_lt, str_rt);
+
+            Node *ref = got->as.impl->funcs->data[1]->value;
+            f->type = ref->as.fdecl->ret;
+            f->args[0] = rhs;
+            f->args[1] = lhs;
         }
 
         break;
@@ -136,8 +172,8 @@ void ast_desug_vnode(Node *root)
 
     assert(v->type->id != UNRESOLVED);
 
-    char *key = m_strcat(ctx_currname(), "_");
-    key = m_strapp(key, v->name);
+    char *key = ctx_currname();
+    key = m_strapp_n(key, "::", v->name);
     
     v->name = key;
     
@@ -165,8 +201,8 @@ void ast_desug_retnode(Node *root)
 
     if (typecmp(funret, ret) < TCMP_INC)
     {
-        const char *str1 = type2str(funret);
-        const char *str2 = type2str(ret);
+        char *str1 = type2str(funret);
+        char *str2 = type2str(ret);
         derr("Can't return '%s' from '%s'", str1, str2);
     }
 }

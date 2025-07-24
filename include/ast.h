@@ -134,7 +134,6 @@ struct ImplDeclNode
 {
     const char *trait;
     HashTable *types;
-    // struct FunDeclNode **funs;
     HashTable *funcs;
 };
 

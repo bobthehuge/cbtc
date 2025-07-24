@@ -6,7 +6,7 @@ LDLIBS =
 
 SRC = `find . -path './src/*.c'`
 OBJ = `find . -name '*.o'`
-EXE = cmlc
+EXE = cbtc
 
 all: setrel complink
 
@@ -17,11 +17,11 @@ comp:
 rel: setrel complink
 dev: setdev complink
 run:
-	./$(EXE)
+	./$(EXE) $(ARGS)
 gdb: dev
-	$(GDB) ./$(EXE)
+	$(GDB) --args ./$(EXE) $(ARGS)
 memcheck: dev
-	valgrind --leak-check=full -s ./$(EXE)
+	valgrind --leak-check=full -s ./$(EXE) $(ARGS)
 setdev:
 	$(eval CFLAGS := $(CDEVFLAGS))
 setrel:
