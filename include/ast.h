@@ -34,12 +34,6 @@ struct ValueNode
 
 typedef struct
 {
-    HashTable *types;
-    HashTable *funcs;
-} TraitInfo;
-
-typedef struct
-{
     Type repr;
     HashTable *traits;
 } TypeInfo;
@@ -62,6 +56,7 @@ typedef enum
     NK_VAR_DECL,
     NK_FUN_DECL,
     NK_MOD_DECL,
+    NK_TRAIT_DECL,
     NK_IMPL_DECL,
     NK_EXPR_LIT,
     NK_EXPR_IDENT,
@@ -73,6 +68,30 @@ typedef enum
     NK_EXPR_FUNCALL,
     NK_RETURN,
 } NodeKind;
+
+// typedef enum
+// {
+//     NS_UNUSED,
+//     NS_USED_ONCE,
+//     NS_USED_MULT,
+//     NS_UNREACHABLE,
+//     NS_REACHABLE,
+// } NodeState;
+
+#define REACHABLE      1 << 0
+#define READ           1 << 1
+#define WRITE          1 << 2
+#define CALL           1 << 3
+
+#define SET_STATES(st, x) (*(uint8_t *)st = x)
+
+typedef struct
+{
+    uint8_t reachable:1;
+    uint8_t read:1;
+    uint8_t write:1;
+    uint8_t call:1;
+} NodeStates;
 
 struct VarDeclNode
 {
@@ -100,14 +119,15 @@ struct FunDeclNode
 struct IdentNode
 {
     Type *type;
-    char *name;
+    const char *name;
 };
 
 struct FunCallNode
 {
     uint argc;
-    Type *type;
+    // Type *type;
     const char *name;
+    // struct Node *funcref;
     struct Node **args;
 };
 
@@ -137,6 +157,13 @@ struct ImplDeclNode
     HashTable *funcs;
 };
 
+struct TraitDeclNode
+{
+    const char *name;
+    HashTable *types;
+    HashTable *funcs;
+};
+
 typedef struct Node
 {
     NodeKind kind;
@@ -144,6 +171,7 @@ typedef struct Node
     const char *afile;
     size_t row;
     size_t col;
+    NodeStates states;
 
     union
     {
@@ -157,6 +185,7 @@ typedef struct Node
         struct BinopNode      *binop;
         struct UnopNode       *unop;
         struct FunCallNode    *fcall;
+        struct TraitDeclNode  *tdecl;
         struct ImplDeclNode   *impl;
     } as;
 } Node;

@@ -21,6 +21,7 @@ void symtable_free(void);
 int add_symbol(const char *bkey, Node *val);
 int is_symbol(const char *bkey);
 HashData *get_symbol(const char *bkey);
+Node *get_symbolv(const char *key);
 void dump_symbols(void);
 
 #endif

@@ -19,6 +19,8 @@ Node *new_node(NodeKind k, Token *semholder)
     root->row = 0;
     root->col = 0;
 
+    SET_STATES(&root->states, 0);
+
     if (semholder)
         root->afile = m_strdup(g_lexer.filename);
     else
@@ -71,6 +73,10 @@ Node *new_node(NodeKind k, Token *semholder)
     case NK_VAR_DECL:
         dst = &root->as.vdecl;
         s = sizeof(struct VarDeclNode);
+        break;
+    case NK_TRAIT_DECL:
+        dst = &root->as.tdecl;
+        s = sizeof(struct TraitDeclNode);
         break;
     case NK_IMPL_DECL:
         dst = &root->as.impl;
@@ -237,7 +243,7 @@ Node *parse_funcall(Node *n)
     Node *node = new_node(NK_EXPR_FUNCALL, &cur);
     struct FunCallNode *root = node->as.fcall;
 
-    root->type = empty_type();
+    // root->type = empty_type();
     root->args = smalloc(0);
     root->argc = 0;
 
@@ -245,6 +251,9 @@ Node *parse_funcall(Node *n)
         perr("Invalid function call (should be unreachable)");
 
     root->name = n->as.ident->name;
+    // root->funcref = NULL;
+    // root->func->as.name = n->as.ident->name;
+    // root->func->resolved = false;
 
     cur = next_token();
 
@@ -565,10 +574,12 @@ Node **parse_mod_body(Node *node)
 
 Node *parse_file(const char *rpath)
 {
-    reset_traits();
-    reset_types();
-
+    // reset_traits();
     symtable_reset(16);
+
+    reset_types();
+    init_cbtbase();
+
     set_lexer(rpath);
 
     Node *node = new_node(NK_MOD_DECL, NULL);

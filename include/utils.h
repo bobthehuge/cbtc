@@ -55,6 +55,10 @@ char *__m_strchg(const char *src, const char *tok, const char *val, bool all);
 // calls __str_chg then replace `dst` by the result
 void __m_strrep(char **dst, const char *tok, const char *val, bool all);
 
+// writes `src` into `dst`. `dst` MUST be a valid (possibly empty) cstr.
+// It is dynamically resized if needed
+void m_strwrite(char **dst, const char *src);
+
 char *stresc(const char *str);
 char *file_basename(const char *path);
 int is_valid_int(const char *s, long *res, int base);

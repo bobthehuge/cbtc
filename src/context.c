@@ -110,6 +110,11 @@ HashData *get_symbol(const char *key)
     return bth_htab_get(symbols, (char *)key);
 }
 
+Node *get_symbolv(const char *key)
+{
+    return bth_htab_vget(symbols, (char *)key);
+}
+
 void dump_symbols(void)
 {
     printf("Symbols: \n");

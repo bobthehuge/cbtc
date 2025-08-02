@@ -1,5 +1,6 @@
 #include "../include/ast.h"
 #include "../include/bth_alloc.h"
+#include "../include/context.h"
 #include "../include/types.h"
 #include "../include/utils.h"
 
@@ -15,13 +16,16 @@
 // 
 static void __define_add_trait(void)
 {
-    TraitInfo *tr = smalloc(sizeof(TraitInfo));
+    // TraitInfo *tr = smalloc(sizeof(TraitInfo));
+    Node *tnode = new_node(NK_TRAIT_DECL, NULL);
+    struct TraitDeclNode *tr = tnode->as.tdecl;
 
+    tr->name = m_strdup("Add");
     tr->types = bth_htab_new(8, 0, 0);
     tr->funcs = bth_htab_new(8, 0, 0);
 
-    Node *node = new_node(NK_FUN_DECL, NULL);
-    struct FunDeclNode *Add_add = node->as.fdecl;
+    Node *fnode = new_node(NK_FUN_DECL, NULL);
+    struct FunDeclNode *Add_add = fnode->as.fdecl;
 
     Add_add->ret = empty_type();
     Add_add->ret->id = VT_CUSTOM + 2;
@@ -64,8 +68,10 @@ static void __define_add_trait(void)
     Add_add->args[0] = n1;
     Add_add->args[1] = n1;
 
-    bth_htab_add(tr->funcs, "add", node);
-    define_trait("Add", tr);
+    bth_htab_add(tr->funcs, "add", fnode);
+    // define_trait("Add", tr);
+
+    add_symbol("Add", tnode);
 }
 
 void __define_char_type(void)
@@ -132,35 +138,19 @@ void __define_any_type(void)
 {
 }
 
-void define_static_traits(void)
+// void define_static_traits(void)
+// {
+// }
+
+// void define_static_types(void)
+// {
+// }
+
+void init_cbtbase(void)
 {
     __define_add_trait();
-}
 
-void define_static_types(void)
-{
     __define_char_type();
     __define_int_type();
-    __define_any_type();
-
-    printf("[\n");
-
-    for (uint i = 1; i < type_table->size; i++)
-    {
-        HashData *hd = type_table->data[i];
-
-        if (!hd)
-            continue;
-        
-        TypeInfo *ti = hd->value;
-
-        printf("  \"%s\": [\n", hd->key);
-
-        for (uint j = 1; j < ti->traits->size; j ++)
-            printf("      %s\n", ti->traits->data[j]->key);
-        
-        printf("  ]\n\n");
-    }
-
-    printf("\n]\n");
+    // __define_any_type();
 }

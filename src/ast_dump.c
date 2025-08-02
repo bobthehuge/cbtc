@@ -2,6 +2,8 @@
 #include <stdio.h>
 
 #include "../include/ast.h"
+#include "../include/bth_alloc.h"
+#include "../include/context.h"
 #include "../include/types.h"
 #include "../include/utils.h"
 
@@ -166,7 +168,15 @@ void ast_dump_unop(Node *u, int padd)
 
 void ast_dump_fcall(struct FunCallNode *fc, int padd)
 {
-    char *frett = type2str(fc->type);
+    char *frett = m_strdup("unresolved");
+    HashData *hd = get_symbol(fc->name);
+
+    if (hd && hd->value)
+    {
+        Node *fd = hd->value;
+        m_strwrite(&frett, type2str(fd->as.fdecl->ret));
+    }
+
     printf("%*s(call \"%s\": %s\n", padd, "", fc->name, frett);
     free(frett);
 

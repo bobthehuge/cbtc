@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-HashTable *trait_table = NULL;
+// HashTable *trait_table = NULL;
 HashTable *type_table = NULL;
 
 Type *empty_type(void)
@@ -97,25 +97,25 @@ TypeInfo *get_id_type_info(uint id)
     return hd->value;
 }
 
-HashData *get_trait(const char *name)
-{
-    HashData *hd = bth_htab_get(trait_table, name);
+// HashData *get_trait(const char *name)
+// {
+//     HashData *hd = bth_htab_get(trait_table, name);
 
-    if (!hd)
-        perr("'%s' doesn't refer to a valid trait", name);
+//     if (!hd)
+//         perr("'%s' doesn't refer to a valid trait", name);
 
-    return hd;
-}
+//     return hd;
+// }
 
-TraitInfo *get_trait_info(const char *name)
-{
-    HashData *hd = get_trait(name);
+// TraitInfo *get_trait_info(const char *name)
+// {
+//     HashData *hd = get_trait(name);
 
-    if (!hd->value)
-        perr("Malformed TraitInfo for id '%s'", name);
+//     if (!hd->value)
+//         perr("Malformed TraitInfo for id '%s'", name);
 
-    return hd->value;
-}
+//     return hd->value;
+// }
 
 const char *base2str(Type *t)
 {
@@ -139,10 +139,8 @@ const char *base2str(Type *t)
     return NULL;
 }
 
-Type *typeget(Node *_n)
+Type *typeget(Node *n)
 {
-    Node *n = _n;
-
 redo:
     switch (n->kind)
     {
@@ -155,7 +153,16 @@ redo:
     case NK_EXPR_LIT:
         return n->as.ident->type;
     case NK_EXPR_FUNCALL:
-        return n->as.fcall->type;
+        {
+            perr("%s", n->as.fcall->name);
+            Node *fd = get_symbolv(n->as.fcall->name);
+
+            if (!fd || fd->kind != NK_FUN_DECL)
+                return NULL;
+
+            return fd->as.fdecl->ret;
+        }
+        return NULL;
     case NK_VAR_DECL:
         return n->as.vdecl->type;
     case NK_FUN_DECL:
@@ -183,7 +190,7 @@ TypeCmpError typeicmp(TypeInfo *ti, TypeInfo *si)
             if (!td)
                 perr("Malformed trait table for id '%zu'", ti->repr.id);
 
-            TraitInfo *sd = get_trait_info(td->key);
+            struct TraitDeclNode *sd = get_symbolv(td->key)->as.tdecl;
         
             if (!sd)
                 incomp++;
@@ -368,7 +375,7 @@ Node *create_impl_node(const char *name)
     Node *res = new_node(NK_IMPL_DECL, NULL);
     struct ImplDeclNode *im = res->as.impl;
 
-    TraitInfo *tr = get_trait_info(name);
+    struct TraitDeclNode *tr = get_symbolv(name)->as.tdecl;
 
     im->trait = m_strdup(name);
     im->funcs = bth_htab_clone(tr->funcs);
@@ -473,11 +480,12 @@ void impl_trait(Node *node)
 {
     struct ImplDeclNode *im = node->as.impl;
 
-    TraitInfo *tr = bth_htab_vget(trait_table, im->trait);
+    Node *query = get_symbolv(im->trait);
 
-    if (!tr)
+    if (!query)
         perr("'%s' is not a valid trait", im->trait);
 
+    struct TraitDeclNode *tr = query->as.tdecl;
     uint erridx = 0;
     int cmp = typetablecmp(tr->types, im->types, &erridx);
 
@@ -554,21 +562,21 @@ void impl_trait(Node *node)
     // free(key);
 }
 
-void define_trait(const char *name, TraitInfo *tr)
-{
-    if (!bth_htab_add(trait_table, name, tr))
-        perr("Trait '%s' already declared", name);
-}
+// void define_trait(const char *name, TraitInfo *tr)
+// {
+//     if (!bth_htab_add(trait_table, name, tr))
+//         perr("Trait '%s' already declared", name);
+// }
 
-void reset_traits(void)
-{
-    if (trait_table)
-        bth_htab_destroy(trait_table);
+// void reset_traits(void)
+// {
+//     if (trait_table)
+//         bth_htab_destroy(trait_table);
 
-    trait_table = bth_htab_new(16, 2, 1);
+//     trait_table = bth_htab_new(16, 2, 1);
 
-    define_static_traits();
-}
+//     define_static_traits();
+// }
 
 void define_type(const char *name, TypeInfo *ti)
 {
@@ -582,6 +590,4 @@ void reset_types(void)
         bth_htab_destroy(type_table);
 
     type_table = bth_htab_new(16, 2, 1);
-
-    define_static_types();
 }

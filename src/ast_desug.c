@@ -48,6 +48,7 @@ void ast_desug_binop(Node *root)
 
     struct FunCallNode *f = root->as.fcall;
 
+    // f->funcref = NULL;
     f->argc = 2;
     f->args = smalloc(3 * sizeof(Node *));
     f->args[2] = NULL;
@@ -82,13 +83,17 @@ void ast_desug_binop(Node *root)
 
             Node *got = bth_htab_vget(lti->traits, key);
             f->name = m_strapp(key, "::add");
+            // f->ref->as.name = m_strapp(key, "::add");
 
             if (got)
             {
                 Node *ref = got->as.impl->funcs->data[1]->value;
-                f->type = ref->as.fdecl->ret;
+                // f->type = ref->as.fdecl->ret;
+                // f->ref->resolved = true;
+                // f->funcref = got->as.impl->funcs->data[1]->value;
                 f->args[0] = lhs;
                 f->args[1] = rhs;
+                SET_STATES(ref, CALL);
                 return;
             }
 
@@ -100,15 +105,19 @@ void ast_desug_binop(Node *root)
             key = m_strapp_n(key, str_lt, ", ", str_rt, ">");
 
             got = bth_htab_vget(rti->traits, key);
+            // f->name = m_strapp(key, "::add");
             f->name = m_strapp(key, "::add");
 
             if (!got)
                 perr("Can't add %s with %s", str_lt, str_rt);
 
             Node *ref = got->as.impl->funcs->data[1]->value;
-            f->type = ref->as.fdecl->ret;
+            // f->type = ref->as.fdecl->ret;
+            // f->ref->resolved = true;
+            // f->funcref = got->as.impl->funcs->data[1]->value;
             f->args[0] = rhs;
             f->args[1] = lhs;
+            SET_STATES(ref, CALL);
         }
 
         break;
@@ -162,7 +171,7 @@ void ast_desug_assign(Node *root)
 
     assert(d->id != UNRESOLVED && v->id != UNRESOLVED);
     
-    if (typecmp(d, v))
+    if (typecmp(d, v) != TCMP_EQS)
         derr("Can't init '%s' from '%s'", type2str(d), type2str(v));
 }
 
@@ -221,6 +230,7 @@ void ast_desug_fcall(Node *root)
     if (n->kind != NK_FUN_DECL)
         derr("'%s' is not a function", fc->name);
 
+    SET_STATES(&n->states, CALL);
     struct FunDeclNode *fun = n->as.fdecl;
 
     if (fun->argc != fc->argc)
@@ -241,7 +251,7 @@ void ast_desug_fcall(Node *root)
         }
     }
 
-    fc->type = fun->ret;
+    // fc->type = fun->ret;
 }
 
 void ast_desug_fnode(Node *root)

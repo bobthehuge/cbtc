@@ -187,6 +187,15 @@ void __m_strrep(char **dst, const char *tok, const char *val, bool all)
     free(res);
 }
 
+void m_strwrite(char **dst, const char *src)
+{
+    size_t dlen = strlen(*dst);
+    size_t slen = strlen(src);
+
+    *dst = srealloc(*dst, slen + 1);
+    memcpy(*dst, src, slen + 1);
+}
+
 char *stresc(const char *str)
 {
     const char table[7] = {
