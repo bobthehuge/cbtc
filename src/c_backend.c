@@ -136,7 +136,15 @@ static void bk_c_emit_function(Node *root)
     struct FunDeclNode *f = root->as.fdecl;
     
     char *ts = type2crep(f->ret);
-    fprintf(fout, "%s %s", ts, f->name);
+    char *name = m_strchg_all(f->name, "::", "_");
+
+    m_strrep_all(&name, "<", "_");
+    m_strrep_all(&name, ">", "_");
+    m_strrep_all(&name, ", ", "_");
+
+    fprintf(fout, "%s %s", ts, name);
+
+    free(name);
     free(ts);
 
     Node **nodes = f->args;
@@ -171,7 +179,7 @@ static void bk_c_emit_function(Node *root)
 
     (void)ctx_pop();
 
-    fprintf(fout, "}\n");
+    fprintf(fout, "}\n\n");
 }
 
 static void bk_c_emit_vdecl(Node *root)
@@ -191,7 +199,7 @@ static void bk_c_emit_vdecl(Node *root)
 
     Node *last = ctx_peek();
 
-    if (last->kind == NK_FUN_DECL && last->as.fdecl->argc)
+    if (last && last->kind == NK_FUN_DECL && last->as.fdecl->argc)
     {
         // shouldn't be useful anymore as caller's argc should already have
         // been checked in desug
@@ -268,14 +276,42 @@ static void bk_c_emit_node(Node *node)
     }
 }
 
+void bk_c_emit_cbtbase(Node *root)
+{
+    HashTable *syms = __get_symtable();
+
+    ctx_push(root);
+    
+    for (uint i = 1; i < syms->size; i++)
+    {
+        if (!syms->data[i])
+        {
+            // printf("skipped at %u\n", i);
+            continue;
+        }
+
+        Node *cur = syms->data[i]->value;
+
+        if (!cur || cur->afile ||
+            (!cur->states.reachable && !cur->states.call))
+            continue;
+
+        bk_c_emit_node(cur);
+    }
+
+    (void)ctx_pop();
+}
+
 void bk_c_emit(Node *ast, const char *fout_path)
 {
-    symtable_reset(16);
+    // symtable_reset(16);
     fout = fopen(fout_path, "w");
 
     if (!fout)
         err(1, "Invalid out path");
 
+    bk_c_emit_cbtbase(ast);
     bk_c_emit_node(ast);
+
     fclose(fout);
 }

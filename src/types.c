@@ -62,7 +62,7 @@ HashData *get_type(Type *t)
     {
         Node *ctx = ctx_peek();
 
-        if (ctx->kind != NK_IMPL_DECL)
+        if (!ctx || ctx->kind != NK_IMPL_DECL)
             perr("Invalid polymorphic scope");
 
         hd = ctx->as.impl->types->data[t->id];
@@ -154,11 +154,14 @@ redo:
         return n->as.ident->type;
     case NK_EXPR_FUNCALL:
         {
-            perr("%s", n->as.fcall->name);
             Node *fd = get_symbolv(n->as.fcall->name);
 
             if (!fd || fd->kind != NK_FUN_DECL)
+            {
+                // printf("trying to get: %s\n", n->as.fcall->name);
+                // dump_symbols();
                 return NULL;
+            }
 
             return fd->as.fdecl->ret;
         }
@@ -408,16 +411,23 @@ void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
         if (cti->repr.id != VT_ANY)
         {
             char *cur = type2str(&cti->repr);
-            // cur = m_strpre(cur, ", ");
             cur = m_strpre(cur, ckey);
-
             cur = m_strapp(cur, ">");
 
             bth_htab_add(target->traits, cur, node);
-            // printf("add impl %s%s for %s\n", im->trait, cur,
-            //         type2str(&target->repr));
-            free(cur);
+            add_symbol(cur, node);
 
+            cur = m_strapp(cur, "::");
+
+            for (uint j = 1; j < im->funcs->size; j++)
+            {
+                Node *fn = im->funcs->data[j]->value;
+                char *entry = m_strcat(cur, fn->as.fdecl->name);
+                fn->as.fdecl->name = entry;
+                add_symbol(entry, fn);
+            }
+
+            free(cur);
             return;
         }
 
@@ -436,8 +446,18 @@ void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
             cur = m_strapp(cur, ">");
 
             bth_htab_add(target->traits, cur, node);
-            // printf("add impl %s%s for %s\n", im->trait, cur,
-            //         type2str(&target->repr));
+            add_symbol(cur, node);
+
+            cur = m_strapp(cur, "::");
+
+            for (uint j = 1; j < im->funcs->size; j++)
+            {
+                Node *fn = im->funcs->data[j]->value;
+                char *entry = m_strcat(cur, fn->as.fdecl->name);
+                fn->as.fdecl->name = entry;
+                add_symbol(entry, fn);
+            }
+
             // TODO: add poly expansion for function
             free(cur);
         }
@@ -557,7 +577,6 @@ void impl_trait(Node *node)
     (void)ctx_pop();
     
     // TODO();
-
     // bth_htab_add(target->traits, im->trait, im);
     // free(key);
 }

@@ -19,7 +19,8 @@ void ctx_push(Node *c)
 Node *ctx_peek(void)
 {
     if (ctx_count <= 0)
-        perr("No current context");
+        // perr("No current context");
+        return NULL;
 
     return ctx_stack[ctx_count-1];
 }
@@ -115,9 +116,15 @@ Node *get_symbolv(const char *key)
     return bth_htab_vget(symbols, (char *)key);
 }
 
+// NOTE: should only be used during the backend process
+HashTable *__get_symtable(void)
+{
+    return symbols;
+}
+
 void dump_symbols(void)
 {
-    printf("Symbols: \n");
+    printf("\nSymbols = [\n");
     for (size_t i = 1; i < symbols->size; i++)
     {
         if (!symbols->data[i] || !symbols->data[i])
@@ -126,7 +133,8 @@ void dump_symbols(void)
         HashData *hp = symbols->data[i];
         Node *val = hp->value;
 
-        printf("    \"%s\"(%u)\n", hp->key, val->kind);
+        printf("  %zu: \"%s\"  (%u: %s)\n", i, hp->key, val->kind,
+               NODEKIND_STRING[val->kind]);
     }
-    printf("\n");
+    printf("]\n\n");
 }

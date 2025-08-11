@@ -60,9 +60,9 @@ void ast_desug_binop(Node *root)
     Type *rt = typeget(rhs);
 
     if (!lt)
-        derr("Invalid binary operation involving kind %zu", lhs->kind);
+        derr("Invalid binary operation involving %s", NKSTR(lhs->kind));
     if (!rt)
-        derr("Invalid binary operation involving kind %zu", rhs->kind);
+        derr("Invalid binary operation involving %s", NKSTR(rhs->kind));
 
     char *str_lt = type2str(lt);
     char *str_rt = type2str(rt);
@@ -230,7 +230,7 @@ void ast_desug_fcall(Node *root)
     if (n->kind != NK_FUN_DECL)
         derr("'%s' is not a function", fc->name);
 
-    SET_STATES(&n->states, CALL);
+    SET_STATES(n, CALL);
     struct FunDeclNode *fun = n->as.fdecl;
 
     if (fun->argc != fc->argc)
@@ -342,6 +342,7 @@ void ast_desug_node(Node *n)
 
 void ast_desug(Node *root)
 {
+    dump_symbols();
     // symtable_reset(16);
     ast_desug_node(root);
 }

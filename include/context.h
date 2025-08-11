@@ -22,6 +22,7 @@ int add_symbol(const char *bkey, Node *val);
 int is_symbol(const char *bkey);
 HashData *get_symbol(const char *bkey);
 Node *get_symbolv(const char *key);
+HashTable *__get_symtable(void);
 void dump_symbols(void);
 
 #endif

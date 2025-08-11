@@ -66,7 +66,7 @@ static void __define_add_trait(void)
     v2->type->poly = true;
 
     Add_add->args[0] = n1;
-    Add_add->args[1] = n1;
+    Add_add->args[1] = n2;
 
     bth_htab_add(tr->funcs, "add", fnode);
     // define_trait("Add", tr);
@@ -118,8 +118,8 @@ void __define_int_type(void)
 
     // char *name = impl2str(im);
     // bth_htab_add(ti->traits, name, add_int_int);
-
-    f1->body = smalloc(sizeof(Node *));
+    
+    f1->body = smalloc(sizeof(Node *) * 2);
 
     Node *body = new_node(NK_RETURN, NULL);
     body->as.ret = new_node(NK_EXPR_ADD, NULL);
@@ -129,6 +129,9 @@ void __define_int_type(void)
     binop->rhs = new_node(NK_EXPR_IDENT, NULL);
     binop->lhs->as.ident->name = m_strdup("self");
     binop->rhs->as.ident->name = m_strdup("rhs");
+
+    f1->body[0] = body;
+    f1->body[1] = NULL;
     
     define_type("Int", ti);
     impl_trait(add_int_int);
@@ -152,5 +155,5 @@ void init_cbtbase(void)
 
     __define_char_type();
     __define_int_type();
-    // __define_any_type();
+    __define_any_type();
 }

@@ -51,23 +51,51 @@ typedef enum
     TCMP_EQS =  4, // strict equality
 } TypeCmpError;
 
+// typedef enum
+// {
+    // NK_VAR_DECL,
+    // NK_FUN_DECL,
+    // NK_MOD_DECL,
+    // NK_TRAIT_DECL,
+    // NK_IMPL_DECL,
+    // NK_EXPR_LIT,
+    // NK_EXPR_IDENT,
+    // NK_EXPR_ASSIGN,
+    // NK_EXPR_DEREF,
+    // NK_EXPR_REF,
+    // NK_EXPR_ADD,
+    // NK_EXPR_MUL,
+    // NK_EXPR_FUNCALL,
+    // NK_RETURN,
+// } NodeKind;
+
+#define FOREACH_NODEKIND(FUNC) \
+    FUNC(NK_VAR_DECL)      \
+    FUNC(NK_FUN_DECL)      \
+    FUNC(NK_MOD_DECL)      \
+    FUNC(NK_TRAIT_DECL)    \
+    FUNC(NK_IMPL_DECL)     \
+    FUNC(NK_EXPR_LIT)      \
+    FUNC(NK_EXPR_IDENT)    \
+    FUNC(NK_EXPR_ASSIGN)   \
+    FUNC(NK_EXPR_DEREF)    \
+    FUNC(NK_EXPR_REF)      \
+    FUNC(NK_EXPR_ADD)      \
+    FUNC(NK_EXPR_MUL)      \
+    FUNC(NK_EXPR_FUNCALL)  \
+    FUNC(NK_RETURN)        \
+
+#define GENERATE_ENUM(ENUM) ENUM,
+#define GENERATE_STRING(STRING) #STRING,
+
 typedef enum
 {
-    NK_VAR_DECL,
-    NK_FUN_DECL,
-    NK_MOD_DECL,
-    NK_TRAIT_DECL,
-    NK_IMPL_DECL,
-    NK_EXPR_LIT,
-    NK_EXPR_IDENT,
-    NK_EXPR_ASSIGN,
-    NK_EXPR_DEREF,
-    NK_EXPR_REF,
-    NK_EXPR_ADD,
-    NK_EXPR_MUL,
-    NK_EXPR_FUNCALL,
-    NK_RETURN,
+    FOREACH_NODEKIND(GENERATE_ENUM)
 } NodeKind;
+
+extern const char *NODEKIND_STRING[];
+
+#define NKSTR(name) (NODEKIND_STRING[name])
 
 // typedef enum
 // {
@@ -83,7 +111,7 @@ typedef enum
 #define WRITE          1 << 2
 #define CALL           1 << 3
 
-#define SET_STATES(st, x) (*(uint8_t *)st = x)
+#define SET_STATES(st, x) (*(uint8_t *)(&st->states) = x)
 
 typedef struct
 {

@@ -12,6 +12,10 @@
 
 static Token cur = { .kind = LK_END };
 
+const char *NODEKIND_STRING[] = {
+    FOREACH_NODEKIND(GENERATE_STRING)
+};
+
 Node *new_node(NodeKind k, Token *semholder)
 {
     Node *root = smalloc(sizeof(Node));
@@ -19,7 +23,7 @@ Node *new_node(NodeKind k, Token *semholder)
     root->row = 0;
     root->col = 0;
 
-    SET_STATES(&root->states, 0);
+    SET_STATES(root, 0);
 
     if (semholder)
         root->afile = m_strdup(g_lexer.filename);
@@ -62,6 +66,7 @@ Node *new_node(NodeKind k, Token *semholder)
     case NK_EXPR_FUNCALL:
         dst = &root->as.fcall;
         s = sizeof(struct FunCallNode);
+        break;
     case NK_FUN_DECL:
         dst = &root->as.fdecl;
         s = sizeof(struct FunDeclNode);
