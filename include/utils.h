@@ -7,6 +7,7 @@
 // #include "token.h"
 
 #define perr(fmt, ...) __perr(__func__, __LINE__, fmt,##__VA_ARGS__)
+
 #define err_unexp_node(n) \
     perr( \
         "in %s:%zu:%zu:\n\tUnexpected node of kind '%zu'", \

@@ -74,6 +74,41 @@ static void __define_add_trait(void)
     add_symbol("Add", tnode);
 }
 
+void __impl_basic_add(TypeInfo *self, TypeInfo *rhs, TypeInfo *output)
+{
+    Node *add_basic = create_impl_node("Add");
+    struct ImplDeclNode *im = add_basic->as.impl;
+
+    im->types->data[1]->value = self;
+    im->types->data[2]->value = rhs;
+    im->types->data[3]->value = output;
+
+    Node *node = im->funcs->data[1]->value;
+    struct FunDeclNode *f1 = node->as.fdecl;
+
+    f1->args[0]->as.vdecl->type = &self->repr;
+    f1->args[1]->as.vdecl->type = &rhs->repr;
+    f1->ret = &output->repr;
+
+    f1->body = smalloc(sizeof(Node *) * 2);
+
+    Node *body = new_node(NK_RETURN, NULL);
+    body->as.ret = new_node(NK_EXPR_ADD, NULL);
+
+    struct BinopNode *binop = body->as.ret->as.binop;
+
+    binop->lhs = new_node(NK_EXPR_IDENT, NULL);
+    binop->rhs = new_node(NK_EXPR_IDENT, NULL);
+
+    binop->lhs->as.ident->name = m_strdup("self");
+    binop->rhs->as.ident->name = m_strdup("rhs");
+
+    f1->body[0] = body;
+    f1->body[1] = NULL;
+
+    impl_trait(add_basic);
+}
+
 void __define_char_type(void)
 {
     TypeInfo *ti = empty_typeinfo();
@@ -81,9 +116,8 @@ void __define_char_type(void)
     ti->repr.id = VT_CHAR;
     ti->traits = bth_htab_new(4, 1, 1);
 
-    // bth_htab_add(ti->traits, "Add<int, int>", ti);
-
     define_type("Char", ti);
+    __impl_basic_add(ti, ti, ti);
 }
 
 void __define_int_type(void)
@@ -93,48 +127,11 @@ void __define_int_type(void)
     ti->repr.id = VT_INT;
     ti->traits = bth_htab_new(4, 1, 1);
 
-//  impl Add<Rhs, Output> for Int
-//  where
-//      Rhs: Any
-//      Ouput: Any
-//  begin
-//      Output add(self, Rhs rhs);
-//  end
-// 
-    Node *add_int_int = create_impl_node("Add");
-    struct ImplDeclNode *im = add_int_int->as.impl;
-
-    // im->types->data[1]->value = get_id_type_info(VT_CHAR);
-    im->types->data[1]->value = ti;
-    im->types->data[2]->value = ti;
-    im->types->data[3]->value = ti;
-
-    Node *node = im->funcs->data[1]->value;
-    struct FunDeclNode *f1 = node->as.fdecl;
-
-    f1->args[0]->as.vdecl->type = &ti->repr;
-    f1->args[1]->as.vdecl->type = &ti->repr;
-    f1->ret = &ti->repr;
-
-    // char *name = impl2str(im);
-    // bth_htab_add(ti->traits, name, add_int_int);
-    
-    f1->body = smalloc(sizeof(Node *) * 2);
-
-    Node *body = new_node(NK_RETURN, NULL);
-    body->as.ret = new_node(NK_EXPR_ADD, NULL);
-
-    struct BinopNode *binop = body->as.ret->as.binop;
-    binop->lhs = new_node(NK_EXPR_IDENT, NULL);
-    binop->rhs = new_node(NK_EXPR_IDENT, NULL);
-    binop->lhs->as.ident->name = m_strdup("self");
-    binop->rhs->as.ident->name = m_strdup("rhs");
-
-    f1->body[0] = body;
-    f1->body[1] = NULL;
-    
     define_type("Int", ti);
-    impl_trait(add_int_int);
+    __impl_basic_add(ti, ti, ti);
+
+    TypeInfo *vt_char = get_id_type_info(VT_CHAR);
+    __impl_basic_add(ti, vt_char, ti);
 }
 
 void __define_any_type(void)

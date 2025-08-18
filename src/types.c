@@ -378,7 +378,12 @@ Node *create_impl_node(const char *name)
     Node *res = new_node(NK_IMPL_DECL, NULL);
     struct ImplDeclNode *im = res->as.impl;
 
-    struct TraitDeclNode *tr = get_symbolv(name)->as.tdecl;
+
+    Node *node = get_symbolv(name);
+    if (!node)
+        perr("Unresolved trait '%s'\n", name);
+
+    struct TraitDeclNode *tr = node->as.tdecl;
 
     im->trait = m_strdup(name);
     im->funcs = bth_htab_clone(tr->funcs);
@@ -414,7 +419,7 @@ void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
             cur = m_strpre(cur, ckey);
             cur = m_strapp(cur, ">");
 
-            bth_htab_add(target->traits, cur, node);
+            // bth_htab_add(target->traits, cur, node);
             add_symbol(cur, node);
 
             cur = m_strapp(cur, "::");
@@ -445,7 +450,7 @@ void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
 
             cur = m_strapp(cur, ">");
 
-            bth_htab_add(target->traits, cur, node);
+            // bth_htab_add(target->traits, cur, node);
             add_symbol(cur, node);
 
             cur = m_strapp(cur, "::");
@@ -531,11 +536,12 @@ void impl_trait(Node *node)
     {
         HashData *hd = im->funcs->data[i];
         struct FunDeclNode *tif = ((Node *)hd->value)->as.fdecl;
-        struct FunDeclNode *trf =
-            ((Node *)bth_htab_vget(tr->funcs, tif->name))->as.fdecl;
 
-        if (!trf)
+        Node *node = bth_htab_vget(tr->funcs, tif->name);
+        if (!node)
             perr("No function named %s in %s definition", tif->name, im->trait);
+
+        struct FunDeclNode *trf = node->as.fdecl;
 
         // useless as polymorphs are declared at impl definition
         // cmp = typetablecmp(trf->types, tyf->types, &erridx);
