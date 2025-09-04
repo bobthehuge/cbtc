@@ -1,0 +1,22 @@
+bobthehuge@<~/prog/cbt/cbtc>$ make rel run ARGS="./samples/val_ptr_arith1.cbt"
+
+clang -o cbtc `find . -path './src/*.c'` -std=gnu99 -O2
+./cbtc ./samples/val_ptr_arith1.cbt
+
+Symbols = [
+  1: "Add"  (3: NK_TRAIT_DECL)
+  2: "Add<char, char>"  (4: NK_IMPL_DECL)
+  3: "Add<char, char>::add"  (1: NK_FUN_DECL)
+  4: "Add<int, int>"  (4: NK_IMPL_DECL)
+  5: "Add<int, int>::add"  (1: NK_FUN_DECL)
+  6: "Add<char, int>"  (4: NK_IMPL_DECL)
+  7: "Add<char, int>::add"  (1: NK_FUN_DECL)
+  8: "main::a"  (0: NK_VAR_DECL)
+  9: "main::v"  (0: NK_VAR_DECL)
+  10: "main"  (1: NK_FUN_DECL)
+]
+
+at ast_desug_unop:128:
+  in ./samples/val_ptr_arith1.cbt:
+    Faulty node at 7:7: 'int' is not a pointer
+make: *** [Makefile:20: run] Error 1

@@ -7,7 +7,7 @@
 // extern HashTable *trait_table;
 // extern HashTable *type_table;
 
-const char *base2str(Type *t);
+char *base2str(Type *t);
 char *type2str(Type *t);
 Type *typeget(Node *n);
 int typecmp(Type *t1, Type *t2);

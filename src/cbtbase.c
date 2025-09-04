@@ -30,7 +30,6 @@ static void __define_add_trait(void)
     Add_add->ret = empty_type();
     Add_add->ret->id = VT_CUSTOM + 2;
     Add_add->ret->poly = true;
-
     Add_add->name = m_strdup("add");
     Add_add->argc = 2;
     Add_add->args = smalloc(2 * sizeof(struct VarDeclNode *));
@@ -86,10 +85,6 @@ void __impl_basic_add(TypeInfo *self, TypeInfo *rhs, TypeInfo *output)
     Node *node = im->funcs->data[1]->value;
     struct FunDeclNode *f1 = node->as.fdecl;
 
-    f1->args[0]->as.vdecl->type = &self->repr;
-    f1->args[1]->as.vdecl->type = &rhs->repr;
-    f1->ret = &output->repr;
-
     f1->body = smalloc(sizeof(Node *) * 2);
 
     Node *body = new_node(NK_RETURN, NULL);
@@ -136,6 +131,7 @@ void __define_int_type(void)
 
 void __define_any_type(void)
 {
+
 }
 
 // void define_static_traits(void)
@@ -148,9 +144,16 @@ void __define_any_type(void)
 
 void init_cbtbase(void)
 {
+    TypeInfo *ti = empty_typeinfo();
+
+    ti->repr.id = VT_ANY;
+    ti->traits = bth_htab_new(4, 1, 1);
+
+    define_type("Any", ti);
+
     __define_add_trait();
 
+    __define_any_type();
     __define_char_type();
     __define_int_type();
-    __define_any_type();
 }

@@ -63,7 +63,7 @@ void ast_desug_binop(Node *root)
         derr("Invalid binary operation involving %s", NKSTR(lhs->kind));
     if (!rt)
         derr("Invalid binary operation involving %s", NKSTR(rhs->kind));
-
+   
     char *str_lt = type2str(lt);
     char *str_rt = type2str(rt);
 
@@ -74,47 +74,31 @@ void ast_desug_binop(Node *root)
     {
     case NK_EXPR_ADD:
         {
-            // char *key = m_strcat("Add<", str_rt);
-            // key = m_strapp(key, ", ");
-            // key = m_strapp(key, str_lt);
-            // key = m_strapp(key, ">");
             char *key = m_strdup("Add<");
             key = m_strapp_n(key, str_rt, ", ", str_lt, ">");
 
-            Node *got = bth_htab_vget(lti->traits, key);
+            Node *got = get_symbolv(key);
             f->name = m_strapp(key, "::add");
-            // f->ref->as.name = m_strapp(key, "::add");
 
             if (got)
             {
                 Node *ref = got->as.impl->funcs->data[1]->value;
-                // f->type = ref->as.fdecl->ret;
-                // f->ref->resolved = true;
-                // f->funcref = got->as.impl->funcs->data[1]->value;
                 f->args[0] = lhs;
                 f->args[1] = rhs;
                 SET_STATES(ref, CALL);
                 return;
             }
 
-            // key = m_strcat("Add<", str_lt);
-            // key = m_strapp(key, ", ");
-            // key = m_strapp(key, str_rt);
-            // key = m_strapp(key, ">");
             key = m_strdup("Add<");
             key = m_strapp_n(key, str_lt, ", ", str_rt, ">");
 
-            got = bth_htab_vget(rti->traits, key);
-            // f->name = m_strapp(key, "::add");
+            got = get_symbolv(key);
             f->name = m_strapp(key, "::add");
 
             if (!got)
-                perr("Can't add %s with %s", str_lt, str_rt);
+                derr("Can't add %s with %s", str_lt, str_rt);
 
             Node *ref = got->as.impl->funcs->data[1]->value;
-            // f->type = ref->as.fdecl->ret;
-            // f->ref->resolved = true;
-            // f->funcref = got->as.impl->funcs->data[1]->value;
             f->args[0] = rhs;
             f->args[1] = lhs;
             SET_STATES(ref, CALL);
@@ -334,6 +318,10 @@ void ast_desug_node(Node *n)
         break;
     case NK_RETURN:
         ast_desug_retnode(n);
+        break;
+    case NK_TRAIT_DECL:
+        break;
+    case NK_IMPL_DECL:
         break;
     default:
         err_unexp_node(n);

@@ -264,8 +264,16 @@ struct bth_htab *bth_htab_clone(struct bth_htab *org)
     }
 
     ht->data = BTH_HTAB_ALLOC(org->size * sizeof(struct bth_hdata *));
-    BTH_HTAB_MEMCPY(ht->data, org->data,
-        org->size * sizeof(struct bth_hdata *));
+
+    // BTH_HTAB_MEMCPY(ht->data, org->data,
+    //     org->size * sizeof(struct bth_hdata *));
+
+    ht->data[0] = org->data[0];
+    for (size_t i = 1; i < org->size; i++)
+    {
+        ht->data[i] = BTH_HTAB_ALLOC(sizeof(struct bth_hdata));
+        *ht->data[i] = *org->data[i];
+    }
 
     return ht;
 }

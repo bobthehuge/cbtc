@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "../include/bth_alloc.h"
 #include "../include/context.h"
 #include "../include/c_backend.h"
 #include "../include/utils.h"
@@ -16,28 +17,14 @@ do \
 
 static char *type2crep(Type *t)
 {
-    char *tmp = malloc(t->refc + 1);
+    char *tmp = smalloc(t->refc + 1);
     memset(tmp, '*', t->refc);
     tmp[t->refc] = 0;
 
-    char *res;
-    
-    switch (t->id)
-    {
-    case UNRESOLVED:
-        res = m_strcat("unresolved", tmp);
-        break;
-    case VT_INT:
-        res = m_strcat("int", tmp);
-        break;
-    case VT_CHAR:
-        res = m_strcat("char", tmp);
-        break;
-    default:
-        UNREACHABLE();
-    }
-
+    char *res = base2str(t);
+    res = m_strapp(res, tmp);
     free(tmp);
+
     return res;
 }
 
@@ -135,6 +122,8 @@ static void bk_c_emit_function(Node *root)
 {
     struct FunDeclNode *f = root->as.fdecl;
     
+    ctx_push(root);
+
     char *ts = type2crep(f->ret);
     char *name = m_strchg_all(f->name, "::", "_");
 
@@ -149,8 +138,6 @@ static void bk_c_emit_function(Node *root)
 
     Node **nodes = f->args;
     fprintf(fout, "(");
-
-    ctx_push(root);
 
     if (!f->argc)
     {

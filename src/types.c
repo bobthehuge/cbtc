@@ -60,12 +60,24 @@ HashData *get_type(Type *t)
     
     if (t->poly)
     {
+        if (t->id < VT_CUSTOM)
+            perr("type-id %zu isn't valid polymorphic");
+        
         Node *ctx = ctx_peek();
 
-        if (!ctx || ctx->kind != NK_IMPL_DECL)
+        if (!ctx)
             perr("Invalid polymorphic scope");
 
-        hd = ctx->as.impl->types->data[t->id];
+        switch (ctx->kind)
+        {
+        case NK_IMPL_DECL:
+            return ctx->as.impl->types->data[t->id - VT_CUSTOM + 1];
+        case NK_FUN_DECL:
+            return ctx->as.fdecl->types->data[t->id - VT_CUSTOM + 1];
+        default:
+            perr("Invalid polymorphic scope of kind %s",
+                 NODEKIND_STRING[ctx->kind]);
+        }
     }
 
     if (!hd)
@@ -117,23 +129,24 @@ TypeInfo *get_id_type_info(uint id)
 //     return hd->value;
 // }
 
-const char *base2str(Type *t)
+char *base2str(Type *t)
 {
     switch (t->id)
     {
     case UNRESOLVED:
-        return "unresolved";
-    case VT_INT:
-        return "int";
-    case VT_CHAR:
-        return "char";
+        return m_strdup("unresolved");
     case VT_ANY:
-        return "any";
-    case VT_CUSTOM:
+        return m_strdup("any");
+    case VT_CHAR:
+        return m_strdup("char");
+    case VT_INT:
+        return m_strdup("int");
+    default:
+        if (t->poly)
+            return base2str(get_type(t)->value);
+
         TODO();
         break;
-    default:
-        UNREACHABLE();
     }
 
     return NULL;
@@ -163,7 +176,12 @@ redo:
                 return NULL;
             }
 
-            return fd->as.fdecl->ret;
+            Type *t = fd->as.fdecl->ret;
+
+            if (t->poly)
+                return fd->as.fdecl->types->data[t->id - VT_CUSTOM]->value;
+
+            return t;
         }
         return NULL;
     case NK_VAR_DECL:
@@ -373,11 +391,52 @@ char *impl2str(struct ImplDeclNode *im)
     return res;
 }
 
+Node *clone_vdecl_node(Node *base)
+{
+    struct VarDeclNode *ref = base->as.vdecl;
+
+    Node *new = new_node(NK_VAR_DECL, NULL);
+    struct VarDeclNode *var = new->as.vdecl;
+
+    var->init = ref->init;
+    var->name = m_strdup(ref->name);
+
+    // NOTE: this should be ok as type are initially refs to a known table
+    var->type = ref->type;
+
+    return new;
+}
+    
+// NOTE: doesn't clone the body, only the "head"
+// 
+Node *clone_fdecl_node(Node *base)
+{
+    struct FunDeclNode *ref = base->as.fdecl;
+
+    Node *new = new_node(NK_FUN_DECL, NULL);
+    struct FunDeclNode *fun = new->as.fdecl;
+    
+    fun->argc = ref->argc;
+    fun->ret = ref->ret;
+    fun->types = NULL;
+    fun->name = m_strdup(ref->name);
+
+    fun->args = smalloc(ref->argc * sizeof(Node *));
+    for (uint i = 0; i < ref->argc; i++)
+        fun->args[i] = clone_vdecl_node(ref->args[i]);
+
+    fun->body = NULL;
+
+    return new;
+}
+
+// NOTE: investigate when "complex" types are used as local type table content
+// is only copied, it's pointers are kept intact. Idk man...
+// 
 Node *create_impl_node(const char *name)
 {
     Node *res = new_node(NK_IMPL_DECL, NULL);
     struct ImplDeclNode *im = res->as.impl;
-
 
     Node *node = get_symbolv(name);
     if (!node)
@@ -389,6 +448,15 @@ Node *create_impl_node(const char *name)
     im->funcs = bth_htab_clone(tr->funcs);
     im->types = bth_htab_clone(tr->types);
 
+    for (uint i = 1; i < im->funcs->size; i++)
+    {
+        Node *base = tr->funcs->data[i]->value;
+        Node *cloned = clone_fdecl_node(base);
+
+        cloned->as.fdecl->types = im->types;
+        im->funcs->data[i]->value = cloned;
+    }
+    
     return res;
 }
 
@@ -482,7 +550,7 @@ void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
         return;
     }
 
-    for (uint i = 1; i < type_table->size; i++)
+    for (uint i = start; i < type_table->size; i++)
     {
         HashData *hd = type_table->data[i];
         TypeInfo *ti = hd->value;
@@ -537,11 +605,11 @@ void impl_trait(Node *node)
         HashData *hd = im->funcs->data[i];
         struct FunDeclNode *tif = ((Node *)hd->value)->as.fdecl;
 
-        Node *node = bth_htab_vget(tr->funcs, tif->name);
-        if (!node)
+        Node *query2 = bth_htab_vget(tr->funcs, tif->name);
+        if (!query2)
             perr("No function named %s in %s definition", tif->name, im->trait);
 
-        struct FunDeclNode *trf = node->as.fdecl;
+        struct FunDeclNode *trf = query2->as.fdecl;
 
         // useless as polymorphs are declared at impl definition
         // cmp = typetablecmp(trf->types, tyf->types, &erridx);

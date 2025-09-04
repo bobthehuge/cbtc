@@ -7,9 +7,9 @@
 typedef enum
 {
     UNRESOLVED,
+    VT_ANY,
     VT_CHAR,
     VT_INT,
-    VT_ANY,
     VT_SELF,
     VT_CUSTOM,
 } VType;
