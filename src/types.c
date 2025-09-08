@@ -43,6 +43,17 @@ TypeInfo *empty_typeinfo(void)
     return ti;
 }
 
+Type *typeclone(Type *t)
+{
+    Type *res = smalloc(sizeof(Type));
+
+    res->id = t->id;
+    res->poly = t->poly;
+    res->refc = t->refc;
+
+    return res;
+}
+
 char *type2str(Type *t)
 {
     char *res = smalloc(t->refc + 1);
@@ -54,9 +65,9 @@ char *type2str(Type *t)
     return res;
 }
 
-HashData *get_type(Type *t)
+HashData *findtype(Type *t)
 {
-    HashData *hd = type_table->data[t->id];
+    HashData *hd = type_table->data[t->id % type_table->size];
     
     if (t->poly)
     {
@@ -88,7 +99,7 @@ HashData *get_type(Type *t)
 
 TypeInfo *get_type_info(Type *t)
 {
-    HashData *hd = get_type(t);
+    HashData *hd = findtype(t);
 
     if (!hd->value)
         perr("Malformed TypeInfo for id '%zu'", t->id);
@@ -143,7 +154,7 @@ char *base2str(Type *t)
         return m_strdup("int");
     default:
         if (t->poly)
-            return base2str(get_type(t)->value);
+            return base2str(findtype(t)->value);
 
         TODO();
         break;

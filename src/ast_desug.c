@@ -3,6 +3,8 @@
 #include "../include/bth_alloc.h"
 #include "../include/context.h"
 
+#include <stdio.h>
+
 #define derr(fmt, ...) \
 do \
 { \
@@ -10,6 +12,8 @@ do \
         "\n  in %s:\n    Faulty node at %zu:%zu: "fmt, \
         root->afile, root->row, root->col,##__VA_ARGS__); \
 } while (0)
+
+Node *faulty = NULL;
 
 void ast_desug_node(Node *n);
 
@@ -65,6 +69,7 @@ void ast_desug_binop(Node *root)
         derr("Invalid binary operation involving %s", NKSTR(rhs->kind));
    
     char *str_lt = type2str(lt);
+    HERE();
     char *str_rt = type2str(rt);
 
     TypeInfo *lti = get_type_info(lt);
@@ -106,9 +111,39 @@ void ast_desug_binop(Node *root)
 
         break;
     case NK_EXPR_MUL:
-        if (lt->refc || rt->refc || lt->id != VT_INT || rt->id != VT_INT
-            || lt->id != rt->id)
-            derr("Can't mul '%s' with '%s'", str_lt, str_rt);
+        // if (lt->refc || rt->refc || lt->id != VT_INT || rt->id != VT_INT
+        //     || lt->id != rt->id)
+        //     derr("Can't mul '%s' with '%s'", str_lt, str_rt);
+        {
+            char *key = m_strdup("Mul<");
+            key = m_strapp_n(key, str_rt, ", ", str_lt, ">");
+
+            Node *got = get_symbolv(key);
+            f->name = m_strapp(key, "::mul");
+
+            if (got)
+            {
+                Node *ref = got->as.impl->funcs->data[1]->value;
+                f->args[0] = lhs;
+                f->args[1] = rhs;
+                SET_STATES(ref, CALL);
+                return;
+            }
+
+            key = m_strdup("Mul<");
+            key = m_strapp_n(key, str_lt, ", ", str_rt, ">");
+
+            got = get_symbolv(key);
+            f->name = m_strapp(key, "::mul");
+
+            if (!got)
+                derr("Can't mul %s with %s", str_lt, str_rt);
+
+            Node *ref = got->as.impl->funcs->data[1]->value;
+            f->args[0] = rhs;
+            f->args[1] = lhs;
+            SET_STATES(ref, CALL);
+        }
         break;
     default:
         UNREACHABLE();
@@ -123,11 +158,25 @@ void ast_desug_unop(Node *root)
     case NK_EXPR_DEREF:
         ast_desug_node(u->value);
         u->type = typeget(u->value);
-        
-        if (u->type->refc == 0)
-            derr("'%s' is not a pointer", type2str(u->type));
 
-        u->type->refc--;
+        switch (u->type->refc)
+        {
+        case 0:
+            derr("'%s' is not a pointer", type2str(u->type));
+        case 1:
+            {
+                TypeInfo *base = findtype(u->type)->value;
+                // free(u->type);
+                u->type = &base->repr;
+            }
+            break;
+        default:
+            u->type = typeclone(u->type);
+            u->type->refc--;
+            break;
+        }
+
+        // u->type->refc--;
         break;
     case NK_EXPR_REF:
         ast_desug_node(u->value);
@@ -330,6 +379,8 @@ void ast_desug_node(Node *n)
 
 void ast_desug(Node *root)
 {
+    // faulty = get_symbol("main::a")->value;
+
     dump_symbols();
     // symtable_reset(16);
     ast_desug_node(root);

@@ -257,7 +257,7 @@ struct bth_htab *bth_htab_clone(struct bth_htab *org)
 
     for (size_t i = 0; i < org->cap; i++)
     {
-        ht->map[i].idx = BTH_HTAB_ALLOC(org->nb * sizeof(size_t));
+        ht->map[i].idx = BTH_HTAB_ALLOC(org->cap * sizeof(size_t));
         ht->map[i].cap = org->map[i].cap;
         BTH_HTAB_MEMCPY(ht->map[i].idx, org->map[i].idx,
             org->map[i].cap * sizeof(size_t));

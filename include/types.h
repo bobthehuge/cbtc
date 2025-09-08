@@ -8,6 +8,7 @@
 // extern HashTable *type_table;
 
 char *base2str(Type *t);
+Type *typeclone(Type *t);
 char *type2str(Type *t);
 Type *typeget(Node *n);
 int typecmp(Type *t1, Type *t2);
@@ -17,7 +18,7 @@ Type *self_type(void);
 
 TypeInfo *empty_typeinfo(void);
 
-HashData *get_type(Type *t);
+HashData *findtype(Type *t);
 TypeInfo *get_type_info(Type *t);
 TypeInfo *get_id_type_info(uint id);
 

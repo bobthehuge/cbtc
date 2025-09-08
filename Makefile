@@ -4,7 +4,7 @@ CRELFLAGS = -std=gnu99 -O2
 CDEVFLAGS = -std=gnu99 -g
 LDLIBS =
 
-SRC = `find . -path './src/*.c'`
+SRC = `find . -path './src/*.c' -not -path './src/cbtbase/*'`
 OBJ = `find . -name '*.o'`
 EXE = cbtc
 
