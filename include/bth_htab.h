@@ -183,6 +183,7 @@ struct bth_htab *bth_htab_new(size_t cap, size_t nd, size_t nb)
 {
     struct bth_htab *ht = BTH_HTAB_ALLOC(sizeof(struct bth_htab));
 
+    ht->noresize = false;
     ht->cap = cap;
     ht->nd = nd;
     ht->nb = nb;
@@ -248,6 +249,7 @@ struct bth_htab *bth_htab_clone(struct bth_htab *org)
 {
     struct bth_htab *ht = BTH_HTAB_ALLOC(sizeof(struct bth_htab));
 
+    ht->noresize = org->noresize;
     ht->cap = org->cap;
     ht->size = org->size;
     ht->nd = org->nd;

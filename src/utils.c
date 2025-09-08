@@ -123,6 +123,10 @@ char *__m_strchg(const char *src, const char *tok, const char *val, bool all)
     char *at = res;
 
 redo:
+    // NOTE: is this enough to avoid invalid read ?
+    if (at - res < tlen)
+        return res;
+
     at = strstr(at, tok);
 
     if (!at || at == res)
