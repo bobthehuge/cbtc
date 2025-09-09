@@ -27,6 +27,11 @@
 #define BTH_ALLOC_ERR(c, msg, ...) err(c, msg, __VA_ARGS__)
 #endif
 
+#ifndef BTH_ALLOC_MEMSET
+#include <string.h>
+#define BTH_ALLOC_MEMSET(dst, c, n) memset(dst, c, n)
+#endif
+
 #ifdef BTH_BALLOC
 
 #define BALLOC_LOCKED (1 << 0)
@@ -40,7 +45,8 @@ struct bth_arena
     char flags;
 };
 
-void bth_balloc_resize(struct bth_arena *t);
+void bth_balloc_fit(struct bth_arena *t);
+void bth_balloc_resize(struct bth_arena *t, size_t s);
 void bth_balloc_free(struct bth_arena *t);
 void *bth_balloc(struct bth_arena *t, size_t s);
 
@@ -60,7 +66,7 @@ void *smalloc(size_t size)
 {
     void *d = malloc(size);
 
-    if (!d && size)
+    if (!d && size || errno == ENOMEM)
         BTH_ALLOC_ERR(1, "Cannot malloc of size %zu", size);
 
     return d;
@@ -70,7 +76,7 @@ void *srealloc(void *ptr, size_t size)
 {
     void *d = realloc(ptr, size);
 
-    if (!d && size)
+    if (!d && size || errno == ENOMEM)
         BTH_ALLOC_ERR(1, "Cannot realloc of size %zu", size);
 
     return d;
@@ -80,7 +86,7 @@ void *scalloc(size_t nmemb, size_t size)
 {
     void *d = calloc(nmemb, size);
 
-    if (!d && size)
+    if (!d && size || errno == ENOMEM)
         BTH_ALLOC_ERR(1, "Cannot calloc of size %zu", size);
 
     return d;
@@ -88,11 +94,20 @@ void *scalloc(size_t nmemb, size_t size)
 
 #ifdef BTH_BALLOC
 // resize arena capacity to len
-void bth_balloc_resize(struct bth_arena *t)
+void bth_balloc_fit(struct bth_arena *t)
 {
     void *d = srealloc(t->data, t->len);
     t->data = d;
     t->cap = t->len;
+}
+
+void bth_balloc_resize(struct bth_arena *t, size_t s)
+{
+    void *d = srealloc(t->data, s);
+    t->data = d;
+
+    t->cap = s;
+
 }
 
 void bth_balloc_free(struct bth_arena *t)
@@ -105,7 +120,7 @@ void bth_balloc_free(struct bth_arena *t)
 
 void *bth_balloc(struct bth_arena *t, size_t size)
 {
-    if (t->cap <= t->len + size)
+    if (t->len + size > t->cap)
     {
         errno = ENOMEM;
         BTH_ALLOC_ERR(1, "Cannot balloc of size %zu", size);
@@ -119,6 +134,7 @@ void *bth_balloc(struct bth_arena *t, size_t size)
 
     return d;
 }
+
 #endif
 
 #endif /* ! */

@@ -17,6 +17,7 @@
 #define BTH_IO_IMPLEMENTATION
 #include "../include/bth_io.h"
 
+#define BTH_BALLOC
 #define BTH_ALLOC_IMPLEMENTATION
 #include "../include/bth_alloc.h"
 
@@ -133,14 +134,18 @@ int main(int argc, char **argv)
         exit(0);
     }
 
+    char *fout = m_scalloc(1);
+
     if (!fout_path)
     {
         // char *fname = file_basename(fin_path);
-        fout_path = m_strdup(getenv("PWD"));
-        fout_path = m_strapp(fout_path, "/res.c");
+        fout = m_strdup(getenv("PWD"));
+        fout = m_strapp(fout, "/res.c");
     }
     
-    bk_c_emit(ast_file1, fout_path);
-    
+    bk_c_emit(ast_file1, fout);
+
+    m_free_arena();
+
     return 0;
 }

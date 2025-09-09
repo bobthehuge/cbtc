@@ -659,7 +659,7 @@ void impl_trait(Node *node)
     // 
 
     poly_expand(node, target, key, 2);
-    free(key);
+    // free(key);
 
     (void)ctx_pop();
     

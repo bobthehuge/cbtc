@@ -381,7 +381,7 @@ void ast_desug(Node *root)
 {
     // faulty = get_symbol("main::a")->value;
 
-    dump_symbols();
+    // dump_symbols();
     // symtable_reset(16);
     ast_desug_node(root);
 }

@@ -152,7 +152,7 @@ long get_token_int(Token *tok)
     if (code < 2)
         warnx("%zu:%zu: long range error", tok->row, tok->col);
 
-    free(src);
+    // free(src);
     return lnum;
 }
 
@@ -589,8 +589,9 @@ Node *parse_file(const char *rpath)
 
     Node *node = new_node(NK_MOD_DECL, NULL);
     struct ModDeclNode *root = node->as.mdecl;
-    
-    root->name = m_strdup(realpath(rpath, NULL));
+
+    char *path = realpath(rpath, NULL);
+    root->name = m_strdup(path);
     root->nodes = parse_mod_body(node);
 
     return node;

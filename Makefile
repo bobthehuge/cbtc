@@ -3,6 +3,7 @@ GDB = gf
 CRELFLAGS = -std=gnu99 -O2
 CDEVFLAGS = -std=gnu99 -g
 LDLIBS =
+VGFLAGS = --leak-check=full -s --track-origins=yes
 
 SRC = `find . -path './src/*.c' -not -path './src/cbtbase/*'`
 OBJ = `find . -name '*.o'`
@@ -21,7 +22,7 @@ run:
 gdb: dev
 	$(GDB) --args ./$(EXE) $(ARGS)
 memcheck: dev
-	valgrind --leak-check=full -s ./$(EXE) $(ARGS)
+	valgrind $(VGFLAGS) ./$(EXE) $(ARGS)
 setdev:
 	$(eval CFLAGS := $(CDEVFLAGS))
 setrel:

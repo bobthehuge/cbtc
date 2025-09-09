@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#define BTH_BALLOC
 #include "../include/bth_alloc.h"
 #include "../include/types.h"
 #include "../include/utils.h"
@@ -15,7 +16,7 @@ void *m_scalloc(size_t s)
 
 void *m_memdup(const void *src, size_t len)
 {
-    void *dst = smalloc(len);
+    void *dst = m_smalloc(len);
     memcpy(dst, src, len);
 
     return dst;
@@ -46,7 +47,7 @@ char *m_strapp(char *dst, const char *src)
     size_t dlen = strlen(dst);
     size_t slen = strlen(src);
 
-    char *res = srealloc(dst, dlen + slen + 1);
+    char *res = m_srealloc(dst, dlen + slen + 1);
     memcpy(res + dlen, src, slen);
     res[dlen + slen] = 0;
 
@@ -66,7 +67,7 @@ char *__m_strapp_n(char *dst, size_t len, const char *strs[len])
         total += lens[i + 1];
     }
 
-    dst = srealloc(dst, total + 1);
+    dst = m_srealloc(dst, total + 1);
     char *start = dst + lens[0];
 
     for (size_t i = 0; i < len; i++)
@@ -185,10 +186,10 @@ void __m_strrep(char **dst, const char *tok, const char *val, bool all)
     char *res = __m_strchg(*dst, tok, val, all);
 
     size_t len = strlen(res);
-    *dst = srealloc(*dst, len + 1);
+    *dst = m_srealloc(*dst, len + 1);
 
     memcpy(*dst, res, len + 1);
-    free(res);
+    // free(res);
 }
 
 void m_strwrite(char **dst, const char *src)
@@ -222,7 +223,7 @@ char *stresc(const char *str)
         flen++;
     }
 
-    char *res = malloc(flen + 1);
+    char *res = smalloc(flen + 1);
     char *ptr = res;
     
     for (iter = str; *iter; iter++)
@@ -281,9 +282,11 @@ char *varsig(struct VarDeclNode *vnode)
     char *res = smalloc(1);
     *res = 0;
 
-    res = m_strapp(res, type2str(vnode->type));
-    res = m_strapp(res, " ");
-    res = m_strapp(res, vnode->name);
+    // res = m_strapp(res, type2str(vnode->type));
+    // res = m_strapp(res, " ");
+    // res = m_strapp(res, vnode->name);
+
+    res = m_strapp_n(res, type2str(vnode->type), " ", vnode->name);
 
     return res;
 }
@@ -293,11 +296,13 @@ char *funcsig(struct FunDeclNode *fnode)
     char *res = smalloc(1);
     *res = 0;
 
-    res = m_strapp(res, type2str(fnode->ret));
-    res = m_strapp(res, " ");
-    res = m_strapp(res, fnode->name);
-    res = m_strapp(res, "(");
+    // res = m_strapp(res, type2str(fnode->ret));
+    // res = m_strapp(res, " ");
+    // res = m_strapp(res, fnode->name);
+    // res = m_strapp(res, "(");
 
+    res = m_strapp_n(res, type2str(fnode->ret), " ", fnode->name, "(");
+    
     if (fnode->argc)
     {
         char *tmp = varsig(fnode->args[0]->as.vdecl);
@@ -307,8 +312,9 @@ char *funcsig(struct FunDeclNode *fnode)
         for (size_t i = 1; i < fnode->argc; i++)
         {
             tmp = varsig(fnode->args[0]->as.vdecl);
-            res = m_strapp(res, ", ");
-            res = m_strapp(res, tmp);
+            // res = m_strapp(res, ", ");
+            // res = m_strapp(res, tmp);
+            res = m_strapp_n(res, ", ", tmp);
             free(tmp);
         }
     }
@@ -321,7 +327,7 @@ char *funcsig(struct FunDeclNode *fnode)
 // get a valid cstr representation from delimited raw bytes
 char *gethashkey(const char *raw, size_t len)
 {
-    char *hk = malloc(len + 1);
+    char *hk = smalloc(len + 1);
 
     for (size_t i = 0; i < len; i++)
         hk[i] = raw[i] % 255 + 1;
@@ -342,4 +348,70 @@ void __perr(const char *fun, int l, const char *fmt, ...)
     va_end(ap);
 
     exit(1);
+}
+
+// data is a void ** containing ptr to valid malloc'd block
+static struct bth_arena MAIN_ARENA = {
+    .cap = 0,
+    .len = 0,
+    .data = NULL,
+};
+
+void *m_smalloc(size_t s)
+{
+    if (!MAIN_ARENA.data)
+    {
+        MAIN_ARENA.data = scalloc(8, sizeof(void *));
+        MAIN_ARENA.cap = 8 * sizeof(void *);
+    }
+
+    if (MAIN_ARENA.len >= MAIN_ARENA.cap)
+    {
+        bth_balloc_resize(&MAIN_ARENA, MAIN_ARENA.len * 2);
+        void **ptrs = MAIN_ARENA.data;
+        size_t start = MAIN_ARENA.len / sizeof(void *);
+        size_t end = MAIN_ARENA.cap / sizeof(void *);
+
+        for (size_t i = start; i < end; i++)
+            ptrs[i] = NULL;
+    }
+    
+    void *res = smalloc(s);
+
+    void **ptr = bth_balloc(&MAIN_ARENA, sizeof(void *));
+    *ptr = res;
+
+    return res;
+}
+
+void *m_srealloc(void *ptr, size_t s)
+{
+    void **ptrs = MAIN_ARENA.data;
+    void *new = srealloc(ptr, s);
+    size_t end = MAIN_ARENA.len / sizeof(void *);
+
+    for (size_t i = 0; i < end; i++)
+    {
+        if (ptrs[i] == ptr)
+        {
+            ptrs[i] = new;
+            break;
+        }
+    }
+
+    return new;
+}
+
+void m_free_arena(void)
+{
+    void **ptrs = MAIN_ARENA.data;
+    size_t count = MAIN_ARENA.len / sizeof(void *);
+    
+    for (size_t i = 0; i < count; i++)
+    {
+        if (ptrs[i])
+            free(ptrs[i]);
+    }
+
+    free(MAIN_ARENA.data);
 }

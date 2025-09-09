@@ -203,13 +203,12 @@ struct bth_htab *bth_htab_new(size_t cap, size_t nd, size_t nb)
         ht->map[i].cap = nb;
     }
 
-    ht->data = BTH_HTAB_CALLOC(nd, sizeof(struct bth_hdata *));
+    // ht->data = BTH_HTAB_CALLOC(nd, sizeof(struct bth_hdata *));
     // BTH_HTAB_MEMSET(ht->data, 0, nd * sizeof(struct bth_hdata *));
 
-    // ht->data = BTH_HTAB_ALLOC(nd * sizeof(struct bth_hdata *));
-
-    // for (size_t i = 1; i < nd; i++)
-    //     ht->data[i] = NULL;
+    ht->data = BTH_HTAB_ALLOC(nd * sizeof(struct bth_hdata *));
+    for (size_t i = 1; i < nd; i++)
+        ht->data[i] = NULL;
 
     ht->data[0] = (void *)0xdeadcafebeefbabe;
 
@@ -271,7 +270,7 @@ struct bth_htab *bth_htab_clone(struct bth_htab *org)
             org->map[i].cap * sizeof(size_t));
     }
 
-    ht->data = BTH_HTAB_ALLOC(org->size * sizeof(struct bth_hdata *));
+    ht->data = BTH_HTAB_CALLOC(org->size, sizeof(struct bth_hdata *));
 
     // BTH_HTAB_MEMCPY(ht->data, org->data,
     //     org->size * sizeof(struct bth_hdata *));
@@ -284,10 +283,6 @@ struct bth_htab *bth_htab_clone(struct bth_htab *org)
         {
             ht->data[i] = BTH_HTAB_ALLOC(sizeof(struct bth_hdata));
             *ht->data[i] = *org->data[i];
-        }
-        else
-        {
-            ht->data[i] = NULL;
         }
     }
 
@@ -356,8 +351,13 @@ void bth_htab_resize(struct bth_htab *ht, size_t s)
     ht->size = s;
 
     if (s > old)
-        BTH_HTAB_MEMSET(ht->data + old, 0, (s - old - 1)
-            * sizeof(struct bth_hdata *));
+    {
+        // BTH_HTAB_MEMSET(ht->data + old, 0, (s - old - 1)
+        //     * sizeof(struct bth_hdata *));
+
+        for (size_t i = old; i < s; i++)
+            ht->data[i] = NULL;
+    }
 }
 
 void bth_htab_reput(struct bth_htab *ht, size_t idx)

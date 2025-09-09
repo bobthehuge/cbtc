@@ -72,4 +72,8 @@ char *gethashkey(const char *raw, size_t len);
 
 void __perr(const char *fun, int l, const char *fmt, ...);
 
+void *m_smalloc(size_t s);
+void *m_srealloc(void *ptr, size_t s);
+void m_free_arena(void);
+
 #endif

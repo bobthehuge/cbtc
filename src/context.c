@@ -69,7 +69,7 @@ char *ctx_currname(void)
     }
 
     size_t len = strlen(res);
-    if (res[len - 1] == '_')
+    if (len && res[len - 1] == '_')
     {
         res = srealloc(res, len);
         res[len - 1] = 0;

@@ -23,7 +23,7 @@ static char *type2crep(Type *t)
 
     char *res = base2str(t);
     res = m_strapp(res, tmp);
-    free(tmp);
+    // free(tmp);
 
     return res;
 }
@@ -34,7 +34,7 @@ static void bk_c_emit_ident(struct IdentNode *i)
 {
     char *name = m_strchg(i->name, "::", "_");
     fprintf(fout, "%s", name);
-    free(name);
+    // free(name);
 }
 
 static void bk_c_emit_literal(struct ValueNode *lit)
@@ -103,7 +103,7 @@ static void bk_c_emit_funcall(Node *root)
     m_strrep_all(&name, ", ", "_");
 
     fprintf(fout, "%s(", name);
-    free(name);
+    // free(name);
 
     Node **nodes = fc->args;
 
@@ -133,8 +133,8 @@ static void bk_c_emit_function(Node *root)
 
     fprintf(fout, "%s %s", ts, name);
 
-    free(name);
-    free(ts);
+    // free(name);
+    // free(ts);
 
     Node **nodes = f->args;
     fprintf(fout, "(");
@@ -175,8 +175,8 @@ static void bk_c_emit_vdecl(Node *root)
     char *ts = type2crep(v->type);
     char *name = m_strchg_all(v->name, "::", "_");
     fprintf(fout, "%*s%s %s", (ctx_count - 1) * 4, "", ts, name);
-    free(name);
-    free(ts);
+    // free(name);
+    // free(ts);
 
     if (v->init)
     {
