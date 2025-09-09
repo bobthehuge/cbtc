@@ -205,6 +205,12 @@ struct bth_htab *bth_htab_new(size_t cap, size_t nd, size_t nb)
 
     ht->data = BTH_HTAB_CALLOC(nd, sizeof(struct bth_hdata *));
     // BTH_HTAB_MEMSET(ht->data, 0, nd * sizeof(struct bth_hdata *));
+
+    // ht->data = BTH_HTAB_ALLOC(nd * sizeof(struct bth_hdata *));
+
+    // for (size_t i = 1; i < nd; i++)
+    //     ht->data[i] = NULL;
+
     ht->data[0] = (void *)0xdeadcafebeefbabe;
 
     return ht;
@@ -271,10 +277,18 @@ struct bth_htab *bth_htab_clone(struct bth_htab *org)
     //     org->size * sizeof(struct bth_hdata *));
 
     ht->data[0] = org->data[0];
+
     for (size_t i = 1; i < org->size; i++)
     {
-        ht->data[i] = BTH_HTAB_ALLOC(sizeof(struct bth_hdata));
-        *ht->data[i] = *org->data[i];
+        if (org->data[i])
+        {
+            ht->data[i] = BTH_HTAB_ALLOC(sizeof(struct bth_hdata));
+            *ht->data[i] = *org->data[i];
+        }
+        else
+        {
+            ht->data[i] = NULL;
+        }
     }
 
     return ht;
@@ -456,12 +470,12 @@ size_t *bth_htab_get_idxp(struct bth_htab *ht, const char *key, uint64_t hash)
 
 size_t bth_htab__dputd(struct bth_htab *ht, struct bth_hdata *hd)
 {
-    struct bth_hdata **data = ht->data + 1;
+    size_t idx = 1;
 
-    while (data - ht->data < ht->size && *data)
-        data++;
-
-    if (data - ht->data >= ht->size)
+    while (idx < ht->size && ht->data[idx])
+        idx++;
+    
+    if (idx >= ht->size)
     {
         if (ht->noresize)
         {
@@ -471,11 +485,10 @@ size_t bth_htab__dputd(struct bth_htab *ht, struct bth_hdata *hd)
 
         size_t inc = ht->nd ? ht->nd : ht->size;
         bth_htab_resize(ht, ht->size + inc);
-        data = ht->data + ht->size - inc;
     }
 
-    *data = hd;
-    return data - ht->data;
+    ht->data[idx] = hd;
+    return idx;
 }
 
 #endif

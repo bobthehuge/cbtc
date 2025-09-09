@@ -432,10 +432,12 @@ Node *clone_fdecl_node(Node *base)
     fun->types = NULL;
     fun->name = m_strdup(ref->name);
 
-    fun->args = smalloc(ref->argc * sizeof(Node *));
+    fun->args = smalloc((ref->argc + 1) * sizeof(Node *));
     for (uint i = 0; i < ref->argc; i++)
         fun->args[i] = clone_vdecl_node(ref->args[i]);
 
+    fun->args[fun->argc] = NULL;
+    
     fun->body = NULL;
 
     return new;
