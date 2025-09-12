@@ -27,7 +27,7 @@ void ast_dump_fnode(struct FunDeclNode *f, int padd)
 {
     char *frett = type2str(f->ret);
     printf("%*s(function \"%s\": %s\n", padd, "", f->name, frett);
-    free(frett);
+    m_free(frett);
 
     Node **nodes = f->args;
 
@@ -138,7 +138,7 @@ void ast_dump_binop(Node *b, int padd)
     
     char *lt = type2str(b->as.binop->type);
     printf("%*s(%s: %s\n", padd, "", op, lt);
-    free(lt);
+    m_free(lt);
     
     ast_dump_node(b->as.binop->lhs, padd + 2);
     ast_dump_node(b->as.binop->rhs, padd + 2);
@@ -178,7 +178,7 @@ void ast_dump_fcall(struct FunCallNode *fc, int padd)
     }
 
     printf("%*s(call \"%s\": %s\n", padd, "", fc->name, frett);
-    free(frett);
+    m_free(frett);
 
     Node **nodes = fc->args;
 

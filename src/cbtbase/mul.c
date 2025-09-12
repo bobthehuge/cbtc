@@ -21,8 +21,9 @@ static void __define_mul_trait(void)
     Mul_mul->ret->id = VT_CUSTOM + 2;
     Mul_mul->ret->poly = true;
     Mul_mul->name = m_strdup("mul");
+
     Mul_mul->argc = 2;
-    Mul_mul->args = smalloc(2 * sizeof(struct VarDeclNode *));
+    Mul_mul->args = m_smalloc(2 * sizeof(Node *));
 
     TypeInfo *t1 = empty_typeinfo();
     TypeInfo *t2 = empty_typeinfo();
@@ -75,7 +76,7 @@ void __impl_basic_mul(TypeInfo *self, TypeInfo *rhs, TypeInfo *output)
     Node *node = im->funcs->data[1]->value;
     struct FunDeclNode *f1 = node->as.fdecl;
 
-    f1->body = smalloc(sizeof(Node *) * 2);
+    f1->body = m_smalloc(sizeof(Node *) * 2);
 
     Node *body = new_node(NK_RETURN, NULL);
     body->as.ret = new_node(NK_EXPR_MUL, NULL);

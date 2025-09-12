@@ -107,7 +107,13 @@ uint32_t djb2(const char *key);
 
 #ifndef BTH_HTAB_ALLOC
 #define BTH_HTAB_ALLOC(n) malloc(n)
+#endif
+
+#ifndef BTH_HTAB_CALLOC
 #define BTH_HTAB_CALLOC(nmemb, size) calloc(nmemb, size)
+#endif
+
+#ifndef BTH_HTAB_REALLOC
 #define BTH_HTAB_REALLOC(ptr, size) realloc(ptr, size)
 #define BTH_HTAB_FREE(p) free(p)
 #endif

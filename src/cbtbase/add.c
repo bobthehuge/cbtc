@@ -22,7 +22,7 @@ void __define_add_trait(void)
     Add_add->ret->poly = true;
     Add_add->name = m_strdup("add");
     Add_add->argc = 2;
-    Add_add->args = (Node **)smalloc(2 * sizeof(Node *));
+    Add_add->args = m_smalloc(2 * sizeof(Node *));
 
     TypeInfo *t1 = empty_typeinfo();
     TypeInfo *t2 = empty_typeinfo();
@@ -75,7 +75,7 @@ void __impl_basic_add(TypeInfo *self, TypeInfo *rhs, TypeInfo *output)
     Node *node = (Node *)im->funcs->data[1]->value;
     struct FunDeclNode *f1 = node->as.fdecl;
 
-    f1->body = (struct Node **)smalloc(sizeof(Node *) * 2);
+    f1->body = m_smalloc(sizeof(Node *) * 2);
 
     Node *body = new_node(NK_RETURN, NULL);
     body->as.ret = new_node(NK_EXPR_ADD, NULL);

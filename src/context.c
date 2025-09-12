@@ -39,7 +39,7 @@ Node *ctx_pop(void)
 char *ctx_currname(void)
 {
     char *tmp = NULL;
-    char *res = smalloc(1);
+    char *res = m_smalloc(1);
     *res = 0;
 
     int i = ctx_count;
@@ -53,15 +53,15 @@ char *ctx_currname(void)
                 break;
             
             tmp = m_strcat("_", res);
-            free(res);
+            m_free(res);
             res = m_strcat(ctx->as.mdecl->name, tmp);
-            free(tmp);
+            m_free(tmp);
             break;
         case NK_FUN_DECL:
             tmp = m_strcat("_", res);
-            free(res);
+            m_free(res);
             res = m_strcat(ctx->as.fdecl->name, tmp);
-            free(tmp);
+            m_free(tmp);
             break;
         default:
             perr("Invalid context detected");
@@ -71,7 +71,7 @@ char *ctx_currname(void)
     size_t len = strlen(res);
     if (len && res[len - 1] == '_')
     {
-        res = srealloc(res, len);
+        res = m_srealloc(res, len);
         res[len - 1] = 0;
     }
     

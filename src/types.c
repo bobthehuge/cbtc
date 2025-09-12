@@ -10,7 +10,7 @@ HashTable *type_table = NULL;
 
 Type *empty_type(void)
 {
-    Type *res = smalloc(sizeof(Type));
+    Type *res = m_smalloc(sizeof(Type));
 
     res->id = UNRESOLVED;
     res->poly = false;
@@ -31,7 +31,7 @@ Type *self_type(void)
 
 TypeInfo *empty_typeinfo(void)
 {
-    TypeInfo *ti = smalloc(sizeof(TypeInfo));
+    TypeInfo *ti = m_smalloc(sizeof(TypeInfo));
     // Type *res = smalloc(sizeof(Type));
 
     ti->repr.id = UNRESOLVED;
@@ -45,7 +45,7 @@ TypeInfo *empty_typeinfo(void)
 
 Type *typeclone(Type *t)
 {
-    Type *res = smalloc(sizeof(Type));
+    Type *res = m_smalloc(sizeof(Type));
 
     res->id = t->id;
     res->poly = t->poly;
@@ -56,7 +56,7 @@ Type *typeclone(Type *t)
 
 char *type2str(Type *t)
 {
-    char *res = smalloc(t->refc + 1);
+    char *res = m_smalloc(t->refc + 1);
     memset(res, '&', t->refc);
     res[t->refc] = 0;
     
@@ -380,7 +380,7 @@ char *impl2str(struct ImplDeclNode *im)
 
         for (uint i = 3; i < im->types->size; i++)
         {
-            free(t);
+            m_free(t);
             ti = im->types->data[i]->value;
             t = type2str(&ti->repr);
             // res = m_strapp(res, ", ");
@@ -388,7 +388,7 @@ char *impl2str(struct ImplDeclNode *im)
             res = m_strapp_n(res, ", ", t);
         }
 
-        free(t);
+        m_free(t);
         res = m_strapp(res, ">");
     }
 
@@ -397,7 +397,7 @@ char *impl2str(struct ImplDeclNode *im)
     ti = im->types->data[1]->value;
     t = type2str(&ti->repr);
     res = m_strapp_n(res, " for ", t);
-    free(t);
+    m_free(t);
 
     return res;
 }
@@ -432,7 +432,7 @@ Node *clone_fdecl_node(Node *base)
     fun->types = NULL;
     fun->name = m_strdup(ref->name);
 
-    fun->args = smalloc((ref->argc + 1) * sizeof(Node *));
+    fun->args = m_smalloc((ref->argc + 1) * sizeof(Node *));
     for (uint i = 0; i < ref->argc; i++)
         fun->args[i] = clone_vdecl_node(ref->args[i]);
 
@@ -513,7 +513,7 @@ void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
                 add_symbol(entry, fn);
             }
 
-            free(cur);
+            m_free(cur);
             return;
         }
 
@@ -545,7 +545,7 @@ void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
             }
 
             // TODO: add poly expansion for function
-            free(cur);
+            m_free(cur);
         }
 
         return;
@@ -558,7 +558,7 @@ void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
         cur = m_strapp(cur, ", ");
 
         poly_expand(node, target, cur, start + 1);
-        free(cur);
+        m_free(cur);
 
         return;
     }
@@ -576,7 +576,7 @@ void poly_expand(Node *node, TypeInfo *target, const char *ckey, uint start)
         cur = m_strapp(cur, ", ");
 
         poly_expand(node, target, cur, start + 1);
-        free(cur);
+        m_free(cur);
     }
 }
 
@@ -659,7 +659,7 @@ void impl_trait(Node *node)
     // 
 
     poly_expand(node, target, key, 2);
-    // free(key);
+    m_free(key);
 
     (void)ctx_pop();
     

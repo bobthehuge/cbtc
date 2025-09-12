@@ -2,6 +2,12 @@
 #include <error.h>
 #include <stdio.h>
 
+#define BTH_HTAB_KEYDUP(k) m_strdup(k)
+#define BTH_HTAB_ALLOC(size) m_smalloc(size)
+#define BTH_HTAB_CALLOC(n, size) m_scalloc(n * size)
+#define BTH_HTAB_REALLOC(ptr, size) m_srealloc(ptr, size)
+#define BTH_HTAB_FREE(ptr) m_free(ptr)
+
 #include "../include/ast.h"
 #include "../include/c_backend.h"
 #include "../include/context.h"
@@ -94,24 +100,6 @@ int main(int argc, char **argv)
         errx(1, "Can't dump ast and ir at the same time");
 
     Node *ast_file1 = parse_file(fin_path);
-
-    // char *t = m_strdup("foo");
-    // t = m_strapp_n(t, "bar", "baz");
-    // printf("%s : %zu\n", t, strlen(t));
-
-    // char *t1 = m_strchg(t, "bar", "ewe");
-    // printf("%s : %zu\n", t1, strlen(t1));
-
-    // char *t2 = m_strchg(t, "bar", "bite");
-    // printf("%s : %zu\n", t2, strlen(t2));
-
-    // char *t3 = m_strchg(t2, "bite", "bar");
-    // printf("%s : %zu\n", t3, strlen(t3));
-    
-    // free(t);
-    // free(t1);
-    // free(t2);
-    // free(t3);
 
     if (dump_ast)
     {

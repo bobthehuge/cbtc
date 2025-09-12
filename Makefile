@@ -1,9 +1,10 @@
 CC = clang
+SHELL = bash
 GDB = gf
 CRELFLAGS = -std=gnu99 -O2
 CDEVFLAGS = -std=gnu99 -g
 LDLIBS =
-VGFLAGS = --leak-check=full -s --track-origins=yes
+VGFLAGS = --leak-check=full --show-leak-kinds=all -s --track-origins=yes
 
 SRC = `find . -path './src/*.c' -not -path './src/cbtbase/*'`
 OBJ = `find . -name '*.o'`

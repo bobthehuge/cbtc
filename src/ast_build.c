@@ -18,7 +18,7 @@ const char *NODEKIND_STRING[] = {
 
 Node *new_node(NodeKind k, Token *semholder)
 {
-    Node *root = smalloc(sizeof(Node));
+    Node *root = m_smalloc(sizeof(Node));
 
     root->row = 0;
     root->col = 0;
@@ -152,7 +152,7 @@ long get_token_int(Token *tok)
     if (code < 2)
         warnx("%zu:%zu: long range error", tok->row, tok->col);
 
-    // free(src);
+    m_free(src);
     return lnum;
 }
 
@@ -249,7 +249,7 @@ Node *parse_funcall(Node *n)
     struct FunCallNode *root = node->as.fcall;
 
     // root->type = empty_type();
-    root->args = smalloc(0);
+    root->args = m_smalloc(0);
     root->argc = 0;
 
     if (n->kind != NK_EXPR_IDENT)
@@ -275,7 +275,7 @@ Node *parse_funcall(Node *n)
 
     cur = next_token(); // eat CPAREN
 
-    root->args = srealloc(root->args, (root->argc + 1) * sizeof(Node *));
+    root->args = m_srealloc(root->args, (root->argc + 1) * sizeof(Node *));
     root->args[root->argc] = NULL;
 
     return node;
@@ -448,7 +448,7 @@ Node *parse_decl(Type *bt)
 
 Node **parse_fun_body(void)
 {
-    Node **nodes = smalloc(0);
+    Node **nodes = m_smalloc(0);
     Node *nnode = NULL;
     size_t count = 0;
     
@@ -478,11 +478,11 @@ Node **parse_fun_body(void)
 
         EXPECT(TK_SEMICOLON);
 
-        nodes = srealloc(nodes, (count + 1) * sizeof(Node *));
+        nodes = m_srealloc(nodes, (count + 1) * sizeof(Node *));
         nodes[count++] = nnode;
     }
 
-    nodes = srealloc(nodes, (count + 1) * sizeof(Node *));
+    nodes = m_srealloc(nodes, (count + 1) * sizeof(Node *));
     nodes[count] = NULL;
 
     return nodes;
@@ -499,13 +499,13 @@ Node *parse_fun_decl(Type *bt, Token *id)
     root->name = m_strdup(get_token_content(id));
 
     root->argc = 0;
-    root->args = smalloc(0);
+    root->args = m_smalloc(0);
 
     ctx_push(node);
 
     while (cur.idx != TK_CPAREN)
     {
-        root->args = srealloc(root->args,
+        root->args = m_srealloc(root->args,
             (root->argc + 1) * sizeof(Node *));
         root->args[root->argc++] = parse_var_decl(parse_type(), &cur);
 
@@ -514,7 +514,7 @@ Node *parse_fun_decl(Type *bt, Token *id)
             cur = next_token();
     }
 
-    root->args = srealloc(root->args, (root->argc + 1) * sizeof(Node *));
+    root->args = m_srealloc(root->args, (root->argc + 1) * sizeof(Node *));
     root->args[root->argc] = NULL;
     
     root->body = parse_fun_body();
@@ -532,7 +532,7 @@ Node *parse_fun_decl(Type *bt, Token *id)
 
 Node **parse_mod_body(Node *node)
 {
-    Node **nodes = smalloc(0);
+    Node **nodes = m_smalloc(0);
     Node *nnode = NULL;
     size_t count = 0;
 
@@ -565,13 +565,13 @@ Node **parse_mod_body(Node *node)
             err_tok_unexp(&cur);
         }
 
-        nodes = srealloc(nodes, (count + 1) * sizeof(Node *));
+        nodes = m_srealloc(nodes, (count + 1) * sizeof(Node *));
         nodes[count++] = nnode;
     }
 
     (void)ctx_pop();
     
-    nodes = srealloc(nodes, (count + 1) * sizeof(Node *));
+    nodes = m_srealloc(nodes, (count + 1) * sizeof(Node *));
     nodes[count] = NULL;
 
     return nodes;
@@ -593,6 +593,8 @@ Node *parse_file(const char *rpath)
     char *path = realpath(rpath, NULL);
     root->name = m_strdup(path);
     root->nodes = parse_mod_body(node);
+    m_free(path);
+    m_free((char *)g_lexer.buffer);
 
     return node;
 }

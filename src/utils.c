@@ -9,11 +9,6 @@
 #include "../include/types.h"
 #include "../include/utils.h"
 
-void *m_scalloc(size_t s)
-{
-    return scalloc(1, s);
-}
-
 void *m_memdup(const void *src, size_t len)
 {
     void *dst = m_smalloc(len);
@@ -56,7 +51,7 @@ char *m_strapp(char *dst, const char *src)
 
 char *__m_strapp_n(char *dst, size_t len, const char *strs[len])
 {
-    size_t *lens = smalloc(sizeof(size_t) * (len + 1));
+    size_t *lens = m_smalloc(sizeof(size_t) * (len + 1));
 
     size_t total = strlen(dst);
     lens[0] = total;
@@ -76,7 +71,7 @@ char *__m_strapp_n(char *dst, size_t len, const char *strs[len])
         start += lens[i + 1];
     }
 
-    free(lens);
+    m_free(lens);
     dst[total] = 0;
     return dst;
 }
@@ -86,7 +81,7 @@ char *m_strcat(const char *s1, const char *s2)
     size_t len1 = strlen(s1);
     size_t len2 = strlen(s2);
 
-    char *res = smalloc(len1 + len2 + 1);
+    char *res = m_smalloc(len1 + len2 + 1);
     memcpy(res, s1, len1);
     memcpy(res + len1, s2, len2);
     res[len1 + len2] = 0;
@@ -99,7 +94,7 @@ char *m_strpre(char *dst, const char *src)
     size_t dlen = strlen(dst);
     size_t slen = strlen(src);
 
-    char *res = srealloc(dst, dlen + slen + 1);
+    char *res = m_srealloc(dst, dlen + slen + 1);
 
     memmove(res + slen, res, dlen);
     memcpy(res, src, slen);
@@ -118,14 +113,16 @@ char *__m_strchg(const char *src, const char *tok, const char *val, bool all)
     size_t rlen = slen;
     char *res = m_strdup(src);
 
+    if (!tlen)
+        return res;
+
     size_t diff = 0;
     size_t off = 0;
 
     char *at = res;
 
 redo:
-    // NOTE: is this enough to avoid invalid read ?
-    if (at - res < tlen)
+    if (rlen - off < tlen)
         return res;
 
     at = strstr(at, tok);
@@ -149,12 +146,13 @@ redo:
 
     if (tlen < vlen)
     {
-        res = srealloc(res, rlen + diff);
+        res = m_srealloc(res, rlen + diff + 1);
         at = res + off;
 
-        memmove(at + vlen, at + tlen, rlen - off - tlen + 1);
+        memmove(at + vlen, at + tlen, rlen - off - tlen);
         memcpy(at, val, vlen);
         rlen += diff;
+        res[rlen] = 0;
 
         at += vlen;
 
@@ -167,13 +165,16 @@ redo:
     diff = tlen - vlen;
     at = res + off;
 
-    memmove(at + vlen, at + tlen, rlen - off - tlen + 1);
+    memmove(at + vlen, at + tlen, rlen - off - tlen);
     memcpy(at, val, vlen);
 
-    res = srealloc(res, rlen - diff);
-    rlen -= diff;
+    size_t pos = at - res;
 
-    at += vlen;
+    res = m_srealloc(res, rlen - diff + 1);
+    rlen -= diff;
+    res[rlen] = 0;
+
+    at = res + pos + vlen;
 
     if (!all)
         return res;
@@ -189,7 +190,7 @@ void __m_strrep(char **dst, const char *tok, const char *val, bool all)
     *dst = m_srealloc(*dst, len + 1);
 
     memcpy(*dst, res, len + 1);
-    // free(res);
+    m_free(res);
 }
 
 void m_strwrite(char **dst, const char *src)
@@ -197,7 +198,7 @@ void m_strwrite(char **dst, const char *src)
     size_t dlen = strlen(*dst);
     size_t slen = strlen(src);
 
-    *dst = srealloc(*dst, slen + 1);
+    *dst = m_srealloc(*dst, slen + 1);
     memcpy(*dst, src, slen + 1);
 }
 
@@ -223,7 +224,7 @@ char *stresc(const char *str)
         flen++;
     }
 
-    char *res = smalloc(flen + 1);
+    char *res = m_smalloc(flen + 1);
     char *ptr = res;
     
     for (iter = str; *iter; iter++)
@@ -279,7 +280,7 @@ int is_valid_int(const char *s, long *res, int base)
 
 char *varsig(struct VarDeclNode *vnode)
 {
-    char *res = smalloc(1);
+    char *res = m_smalloc(1);
     *res = 0;
 
     // res = m_strapp(res, type2str(vnode->type));
@@ -293,7 +294,7 @@ char *varsig(struct VarDeclNode *vnode)
 
 char *funcsig(struct FunDeclNode *fnode)
 {
-    char *res = smalloc(1);
+    char *res = m_smalloc(1);
     *res = 0;
 
     // res = m_strapp(res, type2str(fnode->ret));
@@ -307,7 +308,7 @@ char *funcsig(struct FunDeclNode *fnode)
     {
         char *tmp = varsig(fnode->args[0]->as.vdecl);
         res = m_strapp(res, tmp);
-        free(tmp);
+        m_free(tmp);
 
         for (size_t i = 1; i < fnode->argc; i++)
         {
@@ -315,7 +316,7 @@ char *funcsig(struct FunDeclNode *fnode)
             // res = m_strapp(res, ", ");
             // res = m_strapp(res, tmp);
             res = m_strapp_n(res, ", ", tmp);
-            free(tmp);
+            m_free(tmp);
         }
     }
 
@@ -327,7 +328,7 @@ char *funcsig(struct FunDeclNode *fnode)
 // get a valid cstr representation from delimited raw bytes
 char *gethashkey(const char *raw, size_t len)
 {
-    char *hk = smalloc(len + 1);
+    char *hk = m_smalloc(len + 1);
 
     for (size_t i = 0; i < len; i++)
         hk[i] = raw[i] % 255 + 1;
@@ -399,7 +400,28 @@ void *m_srealloc(void *ptr, size_t s)
         }
     }
 
+    // perr("Unregistered pointer reallocation");
+    // return NULL;
     return new;
+}
+
+void *m_scalloc(size_t s)
+{
+    void *res = m_smalloc(s);
+    memset(res, 0, s);
+    return res;
+}
+
+void m_free(void *ptr)
+{
+    void **ptrs = MAIN_ARENA.data;
+    size_t end = MAIN_ARENA.len / sizeof(void *);
+
+    free(ptr);
+
+    for (size_t i = 0; i < end; i++)
+        if (ptrs[i] == ptr)
+            ptrs[i] = NULL;
 }
 
 void m_free_arena(void)

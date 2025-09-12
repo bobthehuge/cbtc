@@ -46,15 +46,15 @@ void ast_desug_binop(Node *root)
     Node *rhs = root->as.binop->rhs;
     uint kind = root->kind;
     
-    free(root->as.binop);
+    m_free(root->as.binop);
     root->kind = NK_EXPR_FUNCALL;
-    root->as.fcall = smalloc(sizeof(struct FunCallNode));
+    root->as.fcall = m_smalloc(sizeof(struct FunCallNode));
 
     struct FunCallNode *f = root->as.fcall;
 
     // f->funcref = NULL;
     f->argc = 2;
-    f->args = smalloc(3 * sizeof(Node *));
+    f->args = m_smalloc(3 * sizeof(Node *));
     f->args[2] = NULL;
 
     ast_desug_node(lhs);
@@ -69,7 +69,6 @@ void ast_desug_binop(Node *root)
         derr("Invalid binary operation involving %s", NKSTR(rhs->kind));
    
     char *str_lt = type2str(lt);
-    HERE();
     char *str_rt = type2str(rt);
 
     TypeInfo *lti = get_type_info(lt);
@@ -166,7 +165,7 @@ void ast_desug_unop(Node *root)
         case 1:
             {
                 TypeInfo *base = findtype(u->type)->value;
-                // free(u->type);
+                // m_free(u->type); // DO NOT UNCOMMENT NOW
                 u->type = &base->repr;
             }
             break;
